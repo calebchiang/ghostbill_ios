@@ -23,6 +23,7 @@
 		00D92BBD2E7223F400EDD565 /* AnalyticsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D92BBC2E7223EB00EDD565 /* AnalyticsTab.swift */; };
 		00D92BBF2E72281700EDD565 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D92BBE2E72281300EDD565 /* OnboardingView.swift */; };
 		00D92BC12E722F0100EDD565 /* TransactionsList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D92BC02E722EFD00EDD565 /* TransactionsList.swift */; };
+		00D92BC32E7236D100EDD565 /* Overview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D92BC22E7236CF00EDD565 /* Overview.swift */; };
 		00F579112E70AB190041A410 /* ghostbillApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F579102E70AB190041A410 /* ghostbillApp.swift */; };
 		00F579132E70AB190041A410 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F579122E70AB190041A410 /* ContentView.swift */; };
 		00F579152E70AB1B0041A410 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 00F579142E70AB1B0041A410 /* Assets.xcassets */; };
@@ -63,6 +64,7 @@
 		00D92BBC2E7223EB00EDD565 /* AnalyticsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsTab.swift; sourceTree = "<group>"; };
 		00D92BBE2E72281300EDD565 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		00D92BC02E722EFD00EDD565 /* TransactionsList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionsList.swift; sourceTree = "<group>"; };
+		00D92BC22E7236CF00EDD565 /* Overview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Overview.swift; sourceTree = "<group>"; };
 		00F5790D2E70AB190041A410 /* ghostbill.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ghostbill.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		00F579102E70AB190041A410 /* ghostbillApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ghostbillApp.swift; sourceTree = "<group>"; };
 		00F579122E70AB190041A410 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -139,6 +141,7 @@
 		00F5790F2E70AB190041A410 /* ghostbill */ = {
 			isa = PBXGroup;
 			children = (
+				00D92BC22E7236CF00EDD565 /* Overview.swift */,
 				00D92BC02E722EFD00EDD565 /* TransactionsList.swift */,
 				00D92BBE2E72281300EDD565 /* OnboardingView.swift */,
 				00D92BBC2E7223EB00EDD565 /* AnalyticsTab.swift */,
@@ -325,6 +328,7 @@
 				00D92BAF2E72066700EDD565 /* SessionStore.swift in Sources */,
 				00D92BBB2E7223C800EDD565 /* SavingsTab.swift in Sources */,
 				00D92BB52E72196C00EDD565 /* MainTabView.swift in Sources */,
+				00D92BC32E7236D100EDD565 /* Overview.swift in Sources */,
 				00D92BB12E72084700EDD565 /* RootView.swift in Sources */,
 				00F579132E70AB190041A410 /* ContentView.swift in Sources */,
 				00D92B9E2E70FD9A00EDD565 /* FloatingGhostView.swift in Sources */,

@@ -12,7 +12,6 @@ struct TransactionRow: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            // Icon
             Circle()
                 .fill(Color.blue.opacity(0.2))
                 .frame(width: 36, height: 36)
@@ -21,27 +20,16 @@ struct TransactionRow: View {
                         .foregroundColor(.blue)
                 )
 
-            // Merchant + Category
             VStack(alignment: .leading, spacing: 4) {
                 Text(transaction.merchant ?? "Unknown")
                     .font(.headline)
-                Text(transaction.category ?? "Other")
+                Text(formattedDate(transaction.date))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
 
             Spacer(minLength: 8)
 
-            // Date column (no year, e.g., "September 6")
-            Text(formattedDate(transaction.date))
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.9)
-
-            Spacer(minLength: 8)
-
-            // Amount
             Text(formattedAmount(transaction.amount))
                 .font(.headline)
                 .foregroundColor(transaction.amount < 0 ? .red : .green)
@@ -65,6 +53,12 @@ struct TransactionRow: View {
 
 struct TransactionsList: View {
     let transactions: [DBTransaction]
+    @State private var page: Int = 1
+    @State private var showPager: Bool = false
+    private let pageSize = 10
+
+    // match HomeTab background
+    private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
 
     var body: some View {
         if transactions.isEmpty {
@@ -77,12 +71,69 @@ struct TransactionsList: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            List(transactions) { tx in
-                TransactionRow(transaction: tx)
+            List {
+                ForEach(currentPageItems) { tx in
+                    TransactionRow(transaction: tx)
+                        .onAppear {
+                            if tx.id == currentPageItems.last?.id {
+                                showPager = true
+                            }
+                        }
+                }
+
+                if showPager {
+                    pagerFooterRow
+                        .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+                        .listRowBackground(bg) // full-width row background
+                        .listRowSeparator(.hidden)
+                }
             }
             .listStyle(PlainListStyle())
             .scrollContentBackground(.hidden)
             .background(Color.clear)
+        }
+    }
+
+    private var totalPages: Int {
+        max(1, Int(ceil(Double(transactions.count) / Double(pageSize))))
+    }
+
+    private var currentPageItems: [DBTransaction] {
+        let start = (page - 1) * pageSize
+        let end = min(start + pageSize, transactions.count)
+        if start < end { return Array(transactions[start..<end]) }
+        return []
+    }
+
+    private var pagerFooterRow: some View {
+        HStack {
+            Spacer()
+            HStack(spacing: 12) {
+                Button {
+                    if page > 1 {
+                        page -= 1
+                        showPager = false
+                    }
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .disabled(page == 1)
+
+                Text("Page \(page) of \(totalPages)")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+
+                Button {
+                    if page < totalPages {
+                        page += 1
+                        showPager = false
+                    }
+                } label: {
+                    Image(systemName: "chevron.right")
+                }
+                .disabled(page == totalPages)
+            }
+            .padding(.trailing, 16) // keep right-side clear of the scanner button
         }
     }
 }

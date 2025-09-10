@@ -32,6 +32,8 @@ struct HomeTab: View {
 
     var body: some View {
         VStack(spacing: 16) {
+            Overview(transactions: transactions)
+
             HStack {
                 Text("Recent Transactions")
                     .font(.title2)
@@ -66,7 +68,7 @@ struct HomeTab: View {
                 .select()
                 .eq("user_id", value: userId)
                 .order("date", ascending: false)
-                .limit(20)
+                .limit(50)
                 .execute()
                 .value
 

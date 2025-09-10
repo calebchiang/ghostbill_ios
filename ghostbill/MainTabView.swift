@@ -67,7 +67,7 @@ struct MainTabView: View {
                         .clipShape(Circle())
                         .shadow(color: indigo.opacity(0.4), radius: 12, x: 0, y: 8)
                 }
-                .padding(.bottom, 34)
+                .padding(.bottom, 30)
                 .accessibilityLabel("Scan receipt")
             }
             .allowsHitTesting(true)
