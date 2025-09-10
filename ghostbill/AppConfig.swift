@@ -23,4 +23,6 @@ enum AppConfig {
 
     static var supabaseURL: String { dict["SUPABASE_URL"] as? String ?? "" }
     static var supabaseAnonKey: String { dict["SUPABASE_ANON_KEY"] as? String ?? "" }
+    static var redirectURLString: String { dict["REDIRECT_URL"] as? String ?? "" }
 }
+

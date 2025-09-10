@@ -10,10 +10,22 @@ import Supabase
 
 @main
 struct ghostbillApp: App {
+    @StateObject private var session = SessionStore()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
+                .environmentObject(session)
                 .environment(\.supabaseClient, SupabaseManager.shared.client)
+                .onOpenURL { url in
+                    Task {
+                        do {
+                            _ = try await SupabaseManager.shared.client.auth.session(from: url)
+                        } catch {
+                            print("Auth callback error: \(error)")
+                        }
+                    }
+                }
         }
     }
 }

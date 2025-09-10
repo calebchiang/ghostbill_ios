@@ -6,9 +6,11 @@
 //
 
 import SwiftUI
+import Supabase
 
 struct ContentView: View {
     @State private var email: String = ""
+    @Environment(\.supabaseClient) private var supabase
 
     var body: some View {
         ZStack {
@@ -21,8 +23,9 @@ struct ContentView: View {
                     .foregroundColor(Color(red: 0.96, green: 0.96, blue: 0.96))
                     .padding(.bottom, 28)
 
-                Text("Track your expenses, build better spending habits.")
+                Text("Scan your receipts, build better spending habits.")
                     .font(.body)
+                    .fontWeight(.bold)
                     .foregroundColor(Color(red: 0.80, green: 0.80, blue: 0.85))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
@@ -49,7 +52,20 @@ struct ContentView: View {
                         )
                         .cornerRadius(12)
 
-                    Button(action: {}) {
+                    Button(action: {
+                        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        Task {
+                            do {
+                                try await supabase.auth.signInWithOTP(
+                                    email: trimmed,
+                                    redirectTo: URL(string: AppConfig.redirectURLString)
+                                )
+                            } catch {
+                                print("Failed to send magic link: \(error)")
+                            }
+                        }
+                    }) {
                         Text("Continue")
                             .font(.body)
                             .fontWeight(.semibold)
@@ -59,7 +75,7 @@ struct ContentView: View {
                     .background(Color(red: 0.31, green: 0.27, blue: 0.90))
                     .cornerRadius(12)
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 32)
                 .frame(maxWidth: 420)
 
                 Text("Sign in with")
@@ -83,7 +99,7 @@ struct ContentView: View {
                 FloatingGhostView()
                 .padding(.bottom, 140)
             }
-            .padding(.top, 50)
+            .padding(.top, 65)
         }
     }
 }
