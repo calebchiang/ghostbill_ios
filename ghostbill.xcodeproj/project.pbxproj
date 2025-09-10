@@ -7,6 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00D92B9E2E70FD9A00EDD565 /* FloatingGhostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D92B9D2E70FD9300EDD565 /* FloatingGhostView.swift */; };
+		00D92BA22E70FF5E00EDD565 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 00D92BA12E70FF5E00EDD565 /* Auth */; };
+		00D92BA42E70FF5E00EDD565 /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 00D92BA32E70FF5E00EDD565 /* Functions */; };
+		00D92BA62E70FF5E00EDD565 /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 00D92BA52E70FF5E00EDD565 /* PostgREST */; };
+		00D92BA82E70FF5E00EDD565 /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 00D92BA72E70FF5E00EDD565 /* Realtime */; };
+		00D92BAA2E70FF5E00EDD565 /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 00D92BA92E70FF5E00EDD565 /* Storage */; };
+		00D92BAC2E70FF5E00EDD565 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 00D92BAB2E70FF5E00EDD565 /* Supabase */; };
 		00F579112E70AB190041A410 /* ghostbillApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F579102E70AB190041A410 /* ghostbillApp.swift */; };
 		00F579132E70AB190041A410 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F579122E70AB190041A410 /* ContentView.swift */; };
 		00F579152E70AB1B0041A410 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 00F579142E70AB1B0041A410 /* Assets.xcassets */; };
@@ -14,6 +21,8 @@
 		00F579222E70AB1C0041A410 /* ghostbillTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F579212E70AB1C0041A410 /* ghostbillTests.swift */; };
 		00F5792C2E70AB1C0041A410 /* ghostbillUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F5792B2E70AB1C0041A410 /* ghostbillUITests.swift */; };
 		00F5792E2E70AB1C0041A410 /* ghostbillUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F5792D2E70AB1C0041A410 /* ghostbillUITestsLaunchTests.swift */; };
+		00F5793C2E70BDC90041A410 /* Config.plist in Resources */ = {isa = PBXBuildFile; fileRef = 00F5793B2E70BDC90041A410 /* Config.plist */; };
+		00F5793E2E70C1450041A410 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F5793D2E70C1450041A410 /* AppConfig.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,6 +43,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		00D92B9D2E70FD9300EDD565 /* FloatingGhostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingGhostView.swift; sourceTree = "<group>"; };
 		00F5790D2E70AB190041A410 /* ghostbill.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ghostbill.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		00F579102E70AB190041A410 /* ghostbillApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ghostbillApp.swift; sourceTree = "<group>"; };
 		00F579122E70AB190041A410 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -44,6 +54,8 @@
 		00F579272E70AB1C0041A410 /* ghostbillUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ghostbillUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		00F5792B2E70AB1C0041A410 /* ghostbillUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ghostbillUITests.swift; sourceTree = "<group>"; };
 		00F5792D2E70AB1C0041A410 /* ghostbillUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ghostbillUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		00F5793B2E70BDC90041A410 /* Config.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Config.plist; sourceTree = "<group>"; };
+		00F5793D2E70C1450041A410 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -51,6 +63,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				00D92BA62E70FF5E00EDD565 /* PostgREST in Frameworks */,
+				00D92BA42E70FF5E00EDD565 /* Functions in Frameworks */,
+				00D92BAC2E70FF5E00EDD565 /* Supabase in Frameworks */,
+				00D92BA22E70FF5E00EDD565 /* Auth in Frameworks */,
+				00D92BAA2E70FF5E00EDD565 /* Storage in Frameworks */,
+				00D92BA82E70FF5E00EDD565 /* Realtime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,12 +89,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		00D92BA02E70FF5E00EDD565 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		00F579042E70AB190041A410 = {
 			isa = PBXGroup;
 			children = (
 				00F5790F2E70AB190041A410 /* ghostbill */,
 				00F579202E70AB1C0041A410 /* ghostbillTests */,
 				00F5792A2E70AB1C0041A410 /* ghostbillUITests */,
+				00D92BA02E70FF5E00EDD565 /* Frameworks */,
 				00F5790E2E70AB190041A410 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -94,8 +120,11 @@
 		00F5790F2E70AB190041A410 /* ghostbill */ = {
 			isa = PBXGroup;
 			children = (
+				00D92B9D2E70FD9300EDD565 /* FloatingGhostView.swift */,
 				00F579102E70AB190041A410 /* ghostbillApp.swift */,
+				00F5793D2E70C1450041A410 /* AppConfig.swift */,
 				00F579122E70AB190041A410 /* ContentView.swift */,
+				00F5793B2E70BDC90041A410 /* Config.plist */,
 				00F579142E70AB1B0041A410 /* Assets.xcassets */,
 				00F579162E70AB1B0041A410 /* Preview Content */,
 			);
@@ -215,6 +244,9 @@
 				Base,
 			);
 			mainGroup = 00F579042E70AB190041A410;
+			packageReferences = (
+				00D92B9F2E70FF0000EDD565 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			productRefGroup = 00F5790E2E70AB190041A410 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -232,6 +264,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				00F579182E70AB1B0041A410 /* Preview Assets.xcassets in Resources */,
+				00F5793C2E70BDC90041A410 /* Config.plist in Resources */,
 				00F579152E70AB1B0041A410 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -257,7 +290,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				00F5793E2E70C1450041A410 /* AppConfig.swift in Sources */,
 				00F579132E70AB190041A410 /* ContentView.swift in Sources */,
+				00D92B9E2E70FD9A00EDD565 /* FloatingGhostView.swift in Sources */,
 				00F579112E70AB190041A410 /* ghostbillApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -577,6 +612,50 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		00D92B9F2E70FF0000EDD565 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase-community/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		00D92BA12E70FF5E00EDD565 /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 00D92B9F2E70FF0000EDD565 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+		00D92BA32E70FF5E00EDD565 /* Functions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 00D92B9F2E70FF0000EDD565 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Functions;
+		};
+		00D92BA52E70FF5E00EDD565 /* PostgREST */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 00D92B9F2E70FF0000EDD565 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = PostgREST;
+		};
+		00D92BA72E70FF5E00EDD565 /* Realtime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 00D92B9F2E70FF0000EDD565 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Realtime;
+		};
+		00D92BA92E70FF5E00EDD565 /* Storage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 00D92B9F2E70FF0000EDD565 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Storage;
+		};
+		00D92BAB2E70FF5E00EDD565 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 00D92B9F2E70FF0000EDD565 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 00F579052E70AB190041A410 /* Project object */;
 }

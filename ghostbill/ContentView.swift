@@ -21,7 +21,7 @@ struct ContentView: View {
                     .foregroundColor(Color(red: 0.96, green: 0.96, blue: 0.96))
                     .padding(.bottom, 28)
 
-                Text("Track your expenses, build better spending habits")
+                Text("Track your expenses, build better spending habits.")
                     .font(.body)
                     .foregroundColor(Color(red: 0.80, green: 0.80, blue: 0.85))
                     .multilineTextAlignment(.center)
@@ -80,11 +80,8 @@ struct ContentView: View {
 
                 Spacer()
 
-                Image("saving_icon")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 90, height: 90)
-                    .padding(.bottom, 100)
+                FloatingGhostView()
+                .padding(.bottom, 140)
             }
             .padding(.top, 50)
         }

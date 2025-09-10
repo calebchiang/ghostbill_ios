@@ -18,8 +18,6 @@ struct ghostbillApp: App {
     }
 }
 
-// MARK: - Supabase Manager
-
 final class SupabaseManager {
     static let shared = SupabaseManager()
 
@@ -32,8 +30,6 @@ final class SupabaseManager {
         )
     }
 }
-
-// MARK: - SwiftUI Environment support
 
 private struct SupabaseClientKey: EnvironmentKey {
     static let defaultValue: SupabaseClient = SupabaseManager.shared.client
