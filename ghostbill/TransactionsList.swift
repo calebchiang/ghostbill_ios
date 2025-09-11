@@ -36,7 +36,6 @@ struct TransactionRow: View {
                 .frame(alignment: .trailing)
         }
         .padding(.vertical, 8)
-        .listRowBackground(Color.clear)
     }
 
     private func formattedDate(_ date: Date) -> String {
@@ -54,44 +53,45 @@ struct TransactionRow: View {
 struct TransactionsList: View {
     let transactions: [DBTransaction]
     @State private var page: Int = 1
-    @State private var showPager: Bool = false
     private let pageSize = 10
 
-    // match HomeTab background
-    private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
+    private let cardBG = Color(red: 0.14, green: 0.14, blue: 0.17)
 
     var body: some View {
-        if transactions.isEmpty {
-            VStack(spacing: 8) {
-                Text("No transactions recorded yet")
-                    .font(.headline)
-                Text("Add your first expense to see it here.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            List {
-                ForEach(currentPageItems) { tx in
-                    TransactionRow(transaction: tx)
-                        .onAppear {
-                            if tx.id == currentPageItems.last?.id {
-                                showPager = true
-                            }
-                        }
+        VStack(spacing: 0) {
+            if transactions.isEmpty {
+                VStack(spacing: 8) {
+                    Text("No transactions recorded yet")
+                        .font(.headline)
+                    Text("Add your first expense to see it here.")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
-
-                if showPager {
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+            } else {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(currentPageItems) { tx in
+                        TransactionRow(transaction: tx)
+                        Divider().opacity(0.08)
+                    }
                     pagerFooterRow
-                        .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
-                        .listRowBackground(bg) // full-width row background
-                        .listRowSeparator(.hidden)
+                        .padding(.vertical, 10)
                 }
             }
-            .listStyle(PlainListStyle())
-            .scrollContentBackground(.hidden)
-            .background(Color.clear)
         }
+        .padding(.horizontal, 14)
+        .padding(.top, 12)
+        .padding(.bottom, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 22)
+                .fill(cardBG)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22)
+                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.35), radius: 20, x: 0, y: 8)
     }
 
     private var totalPages: Int {
@@ -110,10 +110,7 @@ struct TransactionsList: View {
             Spacer()
             HStack(spacing: 12) {
                 Button {
-                    if page > 1 {
-                        page -= 1
-                        showPager = false
-                    }
+                    if page > 1 { page -= 1 }
                 } label: {
                     Image(systemName: "chevron.left")
                 }
@@ -124,16 +121,12 @@ struct TransactionsList: View {
                     .foregroundColor(.secondary)
 
                 Button {
-                    if page < totalPages {
-                        page += 1
-                        showPager = false
-                    }
+                    if page < totalPages { page += 1 }
                 } label: {
                     Image(systemName: "chevron.right")
                 }
                 .disabled(page == totalPages)
             }
-            .padding(.trailing, 16) // keep right-side clear of the scanner button
         }
     }
 }

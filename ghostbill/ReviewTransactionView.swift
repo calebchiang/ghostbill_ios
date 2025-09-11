@@ -8,22 +8,43 @@
 import SwiftUI
 
 struct ReviewTransactionView: View {
-    var onSave: (_ merchant: String?, _ amount: String?, _ date: Date?, _ category: String?, _ notes: String?) -> Void
+    // Callbacks
+    var onSave: (_ merchant: String?, _ amount: String?, _ date: Date?, _ category: ExpenseCategory?, _ notes: String?) -> Void
     var onScanAgain: () -> Void
     var onCancel: () -> Void
 
-    @State private var merchant: String = ""
-    @State private var amount: String = ""
-    @State private var date: Date = Date()
-    @State private var category: String = ""
-    @State private var notes: String = ""
+    // State (prefilled via init)
+    @State private var merchant: String
+    @State private var amount: String
+    @State private var date: Date
+    @State private var category: ExpenseCategory
+    @State private var notes: String
 
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
     private let textMuted = Color(red: 0.80, green: 0.80, blue: 0.85)
     private let indigo = Color(red: 0.31, green: 0.27, blue: 0.90)
 
-    private let categories = ["", "Dining", "Groceries", "Fuel", "Shopping", "Bills", "Transport", "Entertainment", "Health", "Other"]
+    // Custom initializer to prefill values
+    init(
+        initialMerchant: String?,
+        initialAmount: String?,
+        initialDate: Date?,
+        initialCategory: ExpenseCategory?,
+        onSave: @escaping (_ merchant: String?, _ amount: String?, _ date: Date?, _ category: ExpenseCategory?, _ notes: String?) -> Void,
+        onScanAgain: @escaping () -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        self.onSave = onSave
+        self.onScanAgain = onScanAgain
+        self.onCancel = onCancel
+
+        _merchant = State(initialValue: initialMerchant ?? "")
+        _amount   = State(initialValue: initialAmount ?? "")
+        _date     = State(initialValue: initialDate ?? Date())
+        _category = State(initialValue: initialCategory ?? .other)
+        _notes    = State(initialValue: "")
+    }
 
     var body: some View {
         NavigationView {
@@ -67,8 +88,8 @@ struct ReviewTransactionView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Category").foregroundColor(textMuted).font(.footnote)
                         Picker("Select category", selection: $category) {
-                            ForEach(categories, id: \.self) { c in
-                                Text(c.isEmpty ? "Uncategorized" : c).tag(c)
+                            ForEach(ExpenseCategory.allCases, id: \.self) { c in
+                                Text(c.displayName).tag(c)
                             }
                         }
                         .pickerStyle(MenuPickerStyle())
@@ -94,11 +115,13 @@ struct ReviewTransactionView: View {
 
                 VStack(spacing: 10) {
                     Button {
-                        onSave(merchant.isEmpty ? nil : merchant,
-                               amount.isEmpty ? nil : amount,
-                               date,
-                               category.isEmpty ? nil : category,
-                               notes.isEmpty ? nil : notes)
+                        onSave(
+                            merchant.isEmpty ? nil : merchant,
+                            amount.isEmpty ? nil : amount,
+                            date,
+                            category,
+                            notes.isEmpty ? nil : notes
+                        )
                     } label: {
                         Text("Save Transaction")
                             .fontWeight(.semibold)
@@ -132,7 +155,28 @@ struct ReviewTransactionView: View {
             }
             .padding(16)
             .background(bg.ignoresSafeArea())
+            .navigationBarHidden(true)
         }
         .preferredColorScheme(.dark)
     }
 }
+
+// Pretty names for the enum in the picker
+private extension ExpenseCategory {
+    var displayName: String {
+        switch self {
+        case .groceries:     return "Groceries"
+        case .coffee:        return "Coffee"
+        case .dining:        return "Dining"
+        case .transport:     return "Transport"
+        case .fuel:          return "Fuel"
+        case .shopping:      return "Shopping"
+        case .utilities:     return "Utilities"
+        case .housing:       return "Housing"
+        case .entertainment: return "Entertainment"
+        case .travel:        return "Travel"
+        case .other:         return "Other"
+        }
+    }
+}
+

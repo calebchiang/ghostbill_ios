@@ -22,37 +22,45 @@ struct DBTransaction: Decodable, Identifiable {
 }
 
 struct HomeTab: View {
+    let reloadKey: UUID
+
     @EnvironmentObject var session: SessionStore
     @State private var transactions: [DBTransaction] = []
     @State private var loading = true
 
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
-    private let indigo = Color(red: 0.31, green: 0.27, blue: 0.90)
 
     var body: some View {
-        VStack(spacing: 16) {
-            Overview(transactions: transactions)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Overview(transactions: transactions)
 
-            HStack {
-                Text("Recent Transactions")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(textLight)
-                Spacer()
-            }
-            .padding(.horizontal)
+                HStack {
+                    Text("Recent Transactions")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(textLight)
+                    Spacer()
+                }
+                .padding(.horizontal)
 
-            if loading {
-                ProgressView()
-                    .tint(indigo)
-            } else {
-                TransactionsList(transactions: transactions)
+                if loading {
+                    // 👉 Skeleton that matches TransactionsList’s card layout
+                    TransactionsSkeletonList(rowCount: 8)
+                        .padding(.horizontal)
+                } else {
+                    TransactionsList(transactions: transactions)
+                        .padding(.horizontal)
+                }
+
+                Spacer(minLength: 24)
             }
+            .padding(.top, 12)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(bg.ignoresSafeArea())
-        .task {
+        // Runs on first appear and whenever reloadKey changes
+        .task(id: reloadKey) {
             await loadTransactions()
         }
     }
