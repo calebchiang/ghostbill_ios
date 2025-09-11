@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00827B922E726C9400B9442A /* ReceiptScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00827B912E726C8F00B9442A /* ReceiptScannerView.swift */; };
+		00827B942E72791200B9442A /* ReviewTransactionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00827B932E72790C00B9442A /* ReviewTransactionView.swift */; };
 		00D92B9E2E70FD9A00EDD565 /* FloatingGhostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D92B9D2E70FD9300EDD565 /* FloatingGhostView.swift */; };
 		00D92BA22E70FF5E00EDD565 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 00D92BA12E70FF5E00EDD565 /* Auth */; };
 		00D92BA42E70FF5E00EDD565 /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 00D92BA32E70FF5E00EDD565 /* Functions */; };
@@ -53,6 +55,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		00827B912E726C8F00B9442A /* ReceiptScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptScannerView.swift; sourceTree = "<group>"; };
+		00827B932E72790C00B9442A /* ReviewTransactionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewTransactionView.swift; sourceTree = "<group>"; };
 		00D92B9D2E70FD9300EDD565 /* FloatingGhostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingGhostView.swift; sourceTree = "<group>"; };
 		00D92BAD2E71FA2700EDD565 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		00D92BAE2E72066300EDD565 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
@@ -141,6 +145,8 @@
 		00F5790F2E70AB190041A410 /* ghostbill */ = {
 			isa = PBXGroup;
 			children = (
+				00827B932E72790C00B9442A /* ReviewTransactionView.swift */,
+				00827B912E726C8F00B9442A /* ReceiptScannerView.swift */,
 				00D92BC22E7236CF00EDD565 /* Overview.swift */,
 				00D92BC02E722EFD00EDD565 /* TransactionsList.swift */,
 				00D92BBE2E72281300EDD565 /* OnboardingView.swift */,
@@ -326,10 +332,12 @@
 				00D92BBD2E7223F400EDD565 /* AnalyticsTab.swift in Sources */,
 				00F5793E2E70C1450041A410 /* AppConfig.swift in Sources */,
 				00D92BAF2E72066700EDD565 /* SessionStore.swift in Sources */,
+				00827B922E726C9400B9442A /* ReceiptScannerView.swift in Sources */,
 				00D92BBB2E7223C800EDD565 /* SavingsTab.swift in Sources */,
 				00D92BB52E72196C00EDD565 /* MainTabView.swift in Sources */,
 				00D92BC32E7236D100EDD565 /* Overview.swift in Sources */,
 				00D92BB12E72084700EDD565 /* RootView.swift in Sources */,
+				00827B942E72791200B9442A /* ReviewTransactionView.swift in Sources */,
 				00F579132E70AB190041A410 /* ContentView.swift in Sources */,
 				00D92B9E2E70FD9A00EDD565 /* FloatingGhostView.swift in Sources */,
 				00D92BBF2E72281700EDD565 /* OnboardingView.swift in Sources */,
@@ -491,6 +499,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"ghostbill/Preview Content\"";
@@ -522,6 +531,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"ghostbill/Preview Content\"";

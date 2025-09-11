@@ -12,6 +12,9 @@ struct MainTabView: View {
 
     @State private var selected: Tab = .home
     @State private var showScanner = false
+    @State private var showReview = false
+    @State private var isLoadingScan = false
+    @State private var scannedImage: UIImage? = nil
     @EnvironmentObject var session: SessionStore
 
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
@@ -71,32 +74,59 @@ struct MainTabView: View {
                 .accessibilityLabel("Scan receipt")
             }
             .allowsHitTesting(true)
-        }
-        .sheet(isPresented: $showScanner) {
-            ScannerPlaceholderView()
-        }
-    }
 
-    private struct ScannerPlaceholderView: View {
-        private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
-        private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
-        private let textMuted = Color(red: 0.80, green: 0.80, blue: 0.85)
-
-        var body: some View {
-            VStack(spacing: 12) {
-                Image(systemName: "doc.viewfinder")
-                    .font(.system(size: 42))
-                    .foregroundColor(textLight)
-                Text("Scanner coming soon")
-                    .font(.headline)
-                    .foregroundColor(textLight)
-                Text("This will open the camera to scan receipts and auto-create transactions.")
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(textMuted)
-                    .padding(.horizontal, 24)
+            if isLoadingScan {
+                ZStack {
+                    bg.ignoresSafeArea()
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: indigo))
+                            .scaleEffect(1.5)
+                        Text("Processing receipt…")
+                            .foregroundColor(textLight)
+                            .font(.headline)
+                    }
+                }
+                .transition(.opacity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(bg.ignoresSafeArea())
+        }
+        .fullScreenCover(isPresented: $showScanner) {
+            ReceiptScannerView(
+                onComplete: { images in
+                    scannedImage = images.first
+                    showScanner = false
+                    isLoadingScan = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                        isLoadingScan = false
+                        showReview = true
+                    }
+                },
+                onCancel: {
+                    showScanner = false
+                },
+                onError: { _ in
+                    showScanner = false
+                }
+            )
+        }
+        .sheet(isPresented: $showReview) {
+            ReviewTransactionView(
+                onSave: { _, _, _, _, _ in
+                    showReview = false
+                    scannedImage = nil
+                },
+                onScanAgain: {
+                    showReview = false
+                    scannedImage = nil
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        showScanner = true
+                    }
+                },
+                onCancel: {
+                    showReview = false
+                    scannedImage = nil
+                }
+            )
         }
     }
 }
