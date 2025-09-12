@@ -62,6 +62,10 @@ struct MainTabView: View {
                     }
             }
             .tint(indigo)
+            .toolbarBackground(bg, for: .tabBar)
+            .toolbarBackground(.visible, for: .tabBar)
+            .toolbarColorScheme(.dark, for: .tabBar)
+            .background(bg.ignoresSafeArea()) 
 
             VStack {
                 Spacer()

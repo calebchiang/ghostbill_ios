@@ -49,7 +49,6 @@ struct TransactionsSkeletonList: View {
                 .stroke(Color.white.opacity(0.05), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.35), radius: 20, x: 0, y: 8)
-        .shimmer()
     }
 }
 
@@ -79,43 +78,5 @@ private struct SkeletonTransactionRow: View {
     }
 }
 
-// MARK: - Shimmer
+// Shimmer logic removed.
 
-private struct ShimmerModifier: ViewModifier {
-    @State private var phase: CGFloat = -1.0
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(
-                GeometryReader { geo in
-                    let width = geo.size.width
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.white.opacity(0.0),
-                            Color.white.opacity(0.25),
-                            Color.white.opacity(0.0)
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    .frame(width: width * 1.5)
-                    .rotationEffect(.degrees(12))
-                    .offset(x: phase * width * 2, y: 0)
-                }
-                .clipped()
-                .allowsHitTesting(false)
-                .blendMode(.plusLighter)
-            )
-            .onAppear {
-                withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                    phase = 1.0
-                }
-            }
-    }
-}
-
-private extension View {
-    func shimmer() -> some View {
-        modifier(ShimmerModifier())
-    }
-}

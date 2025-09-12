@@ -32,33 +32,36 @@ struct HomeTab: View {
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Overview(transactions: transactions)
+        ZStack {
+            bg.ignoresSafeArea()
 
-                HStack {
-                    Text("Recent Transactions")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(textLight)
-                    Spacer()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Overview(transactions: transactions)
+
+                    HStack {
+                        Text("Recent Transactions")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(textLight)
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+
+                    if loading {
+                        // 👉 Skeleton that matches TransactionsList’s card layout
+                        TransactionsSkeletonList(rowCount: 8)
+                            .padding(.horizontal)
+                    } else {
+                        TransactionsList(transactions: transactions)
+                            .padding(.horizontal)
+                    }
+
+                    Spacer(minLength: 24)
                 }
-                .padding(.horizontal)
-
-                if loading {
-                    // 👉 Skeleton that matches TransactionsList’s card layout
-                    TransactionsSkeletonList(rowCount: 8)
-                        .padding(.horizontal)
-                } else {
-                    TransactionsList(transactions: transactions)
-                        .padding(.horizontal)
-                }
-
-                Spacer(minLength: 24)
+                .padding(.top, 12)
             }
-            .padding(.top, 12)
         }
-        .background(bg.ignoresSafeArea())
         // Runs on first appear and whenever reloadKey changes
         .task(id: reloadKey) {
             await loadTransactions()
@@ -87,4 +90,3 @@ struct HomeTab: View {
         loading = false
     }
 }
-
