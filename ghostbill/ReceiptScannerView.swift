@@ -75,7 +75,7 @@ struct ReceiptScannerView: UIViewControllerRepresentable {
         /// Central window to encourage close framing (tall/skinny receipt).
         private func focusRect(in bounds: CGRect) -> CGRect {
             let xInset = bounds.width * 0.12
-            let yInset = bounds.height * 0.15
+            let yInset = bounds.height * 0.08
             return bounds.insetBy(dx: xInset, dy: yInset)
         }
 

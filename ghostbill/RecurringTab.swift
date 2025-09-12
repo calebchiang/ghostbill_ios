@@ -21,20 +21,15 @@ struct RecurringTab: View {
     private let cardBG = Color(red: 0.14, green: 0.14, blue: 0.17)
     private let indigo = Color(red: 0.31, green: 0.27, blue: 0.90)
     
-    private let sheetBG = Color(red: 0.90, green: 0.40, blue: 0.12)   // slightly darker solid orange
-    private let sheetBorder = Color(red: 0.95, green: 0.35, blue: 0.05) // bold orange border
-          // bold solid orange
-        // bold solid orange border
+    private let sheetBG = Color(red: 0.26, green: 0.30, blue: 0.62)   // darker indigo background
+    private let sheetBorder = Color(red: 0.14, green: 0.18, blue: 0.42) // bold indigo border
 
 
-    
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .bottom) {
                 
-                // MAIN CONTENT
                 VStack(spacing: 0) {
-                    // HEADER STRIP (lighter zinc)
                     VStack(spacing: 8) {
                         HStack {
                             Text("Recurring")

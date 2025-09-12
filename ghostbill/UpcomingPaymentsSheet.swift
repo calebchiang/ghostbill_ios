@@ -12,7 +12,7 @@ struct UpcomingPaymentsSheet: View {
     let textMuted: Color
     let indigo: Color
 
-    private let sheetBG = Color(red: 0.90, green: 0.40, blue: 0.12)   // slightly darker solid orange
+    private let sheetBG = Color(red: 0.26, green: 0.30, blue: 0.62)   // darker indigo background
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
