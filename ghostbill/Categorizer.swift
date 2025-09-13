@@ -20,6 +20,7 @@ enum ExpenseCategory: String, CaseIterable, Codable {
     case housing
     case entertainment
     case travel
+    case income
     case other
 }
 

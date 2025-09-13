@@ -7,18 +7,26 @@
 
 import SwiftUI
 
+// Bridge DB string -> canonical enum used by UI mapping
+extension DBTransaction {
+    var categoryEnum: ExpenseCategory {
+        guard let raw = category?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased(),
+              let cat = ExpenseCategory(rawValue: raw) else {
+            return .other
+        }
+        return cat
+    }
+}
+
 struct TransactionRow: View {
     let transaction: DBTransaction
 
     var body: some View {
         HStack(spacing: 16) {
-            Circle()
-                .fill(Color.blue.opacity(0.2))
-                .frame(width: 36, height: 36)
-                .overlay(
-                    Image(systemName: "cart.fill")
-                        .foregroundColor(.blue)
-                )
+            // Uses CategoryBadge from CategoryIcons.swift
+            CategoryBadge(category: transaction.categoryEnum)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(transaction.merchant ?? "Unknown")

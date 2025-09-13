@@ -35,6 +35,9 @@
 		00D92BBF2E72281700EDD565 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D92BBE2E72281300EDD565 /* OnboardingView.swift */; };
 		00D92BC12E722F0100EDD565 /* TransactionsList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D92BC02E722EFD00EDD565 /* TransactionsList.swift */; };
 		00D92BC32E7236D100EDD565 /* Overview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D92BC22E7236CF00EDD565 /* Overview.swift */; };
+		00DB88AD2E75EFE700201B12 /* MonthlySavings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00DB88AC2E75EFE300201B12 /* MonthlySavings.swift */; };
+		00DB88AF2E75F72900201B12 /* ReviewIncomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00DB88AE2E75F72500201B12 /* ReviewIncomeView.swift */; };
+		00DB88B12E76033200201B12 /* CategoryIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00DB88B02E76032F00201B12 /* CategoryIcons.swift */; };
 		00F579112E70AB190041A410 /* ghostbillApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F579102E70AB190041A410 /* ghostbillApp.swift */; };
 		00F579132E70AB190041A410 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F579122E70AB190041A410 /* ContentView.swift */; };
 		00F579152E70AB1B0041A410 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 00F579142E70AB1B0041A410 /* Assets.xcassets */; };
@@ -88,6 +91,9 @@
 		00D92BBE2E72281300EDD565 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		00D92BC02E722EFD00EDD565 /* TransactionsList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionsList.swift; sourceTree = "<group>"; };
 		00D92BC22E7236CF00EDD565 /* Overview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Overview.swift; sourceTree = "<group>"; };
+		00DB88AC2E75EFE300201B12 /* MonthlySavings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthlySavings.swift; sourceTree = "<group>"; };
+		00DB88AE2E75F72500201B12 /* ReviewIncomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewIncomeView.swift; sourceTree = "<group>"; };
+		00DB88B02E76032F00201B12 /* CategoryIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryIcons.swift; sourceTree = "<group>"; };
 		00F5790D2E70AB190041A410 /* ghostbill.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ghostbill.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		00F579102E70AB190041A410 /* ghostbillApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ghostbillApp.swift; sourceTree = "<group>"; };
 		00F579122E70AB190041A410 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -164,6 +170,9 @@
 		00F5790F2E70AB190041A410 /* ghostbill */ = {
 			isa = PBXGroup;
 			children = (
+				00DB88B02E76032F00201B12 /* CategoryIcons.swift */,
+				00DB88AE2E75F72500201B12 /* ReviewIncomeView.swift */,
+				00DB88AC2E75EFE300201B12 /* MonthlySavings.swift */,
 				003D8B882E74E549001ACCF7 /* ReviewRecurringTransactionView.swift */,
 				003D8B862E74E465001ACCF7 /* RecurringTransactionsService.swift */,
 				009469092E73C8BC009F7EC0 /* UpcomingPaymentsSheet.swift */,
@@ -361,6 +370,7 @@
 				00D92BBD2E7223F400EDD565 /* AnalyticsTab.swift in Sources */,
 				00F5793E2E70C1450041A410 /* AppConfig.swift in Sources */,
 				009469062E73BC04009F7EC0 /* RecurringCalendar.swift in Sources */,
+				00DB88B12E76033200201B12 /* CategoryIcons.swift in Sources */,
 				003D8B892E74E550001ACCF7 /* ReviewRecurringTransactionView.swift in Sources */,
 				00CD333B2E737B9700313283 /* Categorizer.swift in Sources */,
 				00D92BAF2E72066700EDD565 /* SessionStore.swift in Sources */,
@@ -370,10 +380,12 @@
 				00D92BB52E72196C00EDD565 /* MainTabView.swift in Sources */,
 				00CD33412E73993700313283 /* TransactionsSkeletonList.swift in Sources */,
 				00D92BC32E7236D100EDD565 /* Overview.swift in Sources */,
+				00DB88AF2E75F72900201B12 /* ReviewIncomeView.swift in Sources */,
 				00CD333D2E73808300313283 /* MerchantLexicon.swift in Sources */,
 				00D92BB12E72084700EDD565 /* RootView.swift in Sources */,
 				003D8B872E74E472001ACCF7 /* RecurringTransactionsService.swift in Sources */,
 				00CD33392E73604000313283 /* ReceiptOCR.swift in Sources */,
+				00DB88AD2E75EFE700201B12 /* MonthlySavings.swift in Sources */,
 				00827B942E72791200B9442A /* ReviewTransactionView.swift in Sources */,
 				00F579132E70AB190041A410 /* ContentView.swift in Sources */,
 				00D92B9E2E70FD9A00EDD565 /* FloatingGhostView.swift in Sources */,

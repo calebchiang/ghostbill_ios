@@ -14,7 +14,7 @@ struct UpcomingPaymentsSheet: View {
     let items: [RecurringTransactionsService.DBRecurringTransaction]
     let showContent: Bool
 
-    private let sheetBG = Color(red: 0.26, green: 0.30, blue: 0.62)
+    private let sheetBG = Color(red: 0.11, green: 0.11, blue: 0.13)     // dark zinc background
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

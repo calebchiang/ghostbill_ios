@@ -97,7 +97,6 @@ struct ReviewRecurringTransactionView: View {
             let session = try await SupabaseManager.shared.client.auth.session
             let userId = session.user.id
 
-            // ✅ Normalize to local start-of-day so UTC formatting won’t bump the date.
             let startOfDay = Calendar.current.startOfDay(for: nextDate)
 
             _ = try await RecurringTransactionsService.shared.insertRecurringTransaction(
@@ -143,6 +142,7 @@ private extension ExpenseCategory {
         case .housing:       return "Housing"
         case .entertainment: return "Entertainment"
         case .travel:        return "Travel"
+        case .income:        return "Income"
         case .other:         return "Other"
         }
     }

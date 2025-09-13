@@ -30,12 +30,11 @@ struct RecurringTab: View {
     private let cardBG = Color(red: 0.14, green: 0.14, blue: 0.17)
     private let indigo = Color(red: 0.31, green: 0.27, blue: 0.90)
 
-    private let sheetBG = Color(red: 0.26, green: 0.30, blue: 0.62)
-    private let sheetBorder = Color(red: 0.14, green: 0.18, blue: 0.42)
+    private let sheetBG = Color(red: 0.11, green: 0.11, blue: 0.13)     // dark zinc background
+    private let sheetBorder = Color(red: 0.11, green: 0.11, blue: 0.13)    // light zinc border
 
     var body: some View {
         GeometryReader { geo in
-            // ⬇️ Center-aligned so the popup sits in the middle
             ZStack {
 
                 VStack(spacing: 0) {
