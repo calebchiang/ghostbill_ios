@@ -6,40 +6,49 @@
 //
 
 import SwiftUI
+import Supabase
 
 struct RecurringTab: View {
     @State private var selectedDate: Date? = Date()
-    
-    // bottom sheet drag state
+
+    @State private var showAddRecurring = false
+
     @State private var sheetOffset: CGFloat = 0
     @GestureState private var dragOffset: CGFloat = 0
-    
+
+    @State private var upcoming: [RecurringTransactionsService.DBRecurringTransaction] = []
+
+    // Popup state
+    @State private var showDayPopup: Bool = false
+    @State private var popupPayments: [RecurringTransactionsService.DBRecurringTransaction] = []
+    @State private var popupDate: Date? = nil
+
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
-    private let headerBG = Color(red: 0.16, green: 0.16, blue: 0.18) // lighter “zinc” strip
+    private let headerBG = Color(red: 0.16, green: 0.16, blue: 0.18)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
     private let textMuted = Color(red: 0.80, green: 0.80, blue: 0.85)
     private let cardBG = Color(red: 0.14, green: 0.14, blue: 0.17)
     private let indigo = Color(red: 0.31, green: 0.27, blue: 0.90)
-    
-    private let sheetBG = Color(red: 0.26, green: 0.30, blue: 0.62)   // darker indigo background
-    private let sheetBorder = Color(red: 0.14, green: 0.18, blue: 0.42) // bold indigo border
 
+    private let sheetBG = Color(red: 0.26, green: 0.30, blue: 0.62)
+    private let sheetBorder = Color(red: 0.14, green: 0.18, blue: 0.42)
 
     var body: some View {
         GeometryReader { geo in
-            ZStack(alignment: .bottom) {
-                
+            // ⬇️ Center-aligned so the popup sits in the middle
+            ZStack {
+
                 VStack(spacing: 0) {
                     VStack(spacing: 8) {
                         HStack {
                             Text("Recurring")
                                 .font(.title2).fontWeight(.semibold)
                                 .foregroundColor(textLight)
-                            
+
                             Spacer()
-                            
+
                             Button(action: {
-                                // handle add action here
+                                showAddRecurring = true
                             }) {
                                 Image(systemName: "plus.circle.fill")
                                     .font(.title2)
@@ -48,7 +57,7 @@ struct RecurringTab: View {
                             .padding(.leading, 8)
                         }
                         .padding(.horizontal)
-                        
+
                         WeekdayHeader(textMuted: textMuted)
                             .padding(.horizontal, 8)
                             .padding(.bottom, 4)
@@ -58,48 +67,146 @@ struct RecurringTab: View {
                     .background(headerBG.ignoresSafeArea(edges: .top))
                     .overlay(
                         Rectangle()
-                            .fill(Color.white.opacity(0.08)) // subtle divider
+                            .fill(Color.white.opacity(0.08))
                             .frame(height: 1),
                         alignment: .bottom
                     )
-                    
-                    // CALENDAR
+
                     RecurringCalendar(
                         selection: $selectedDate,
                         accent: indigo,
                         textLight: textLight,
                         textMuted: textMuted,
-                        cardBG: cardBG
+                        cardBG: cardBG,
+                        markedDayKeys: markedDayKeys()
                     )
                     .padding(.top, 12)
-                    
+                    // iOS 16+ compatible onChange: only provides the new value.
+                    .onChange(of: selectedDate) { newValue in
+                        guard let date = newValue else { return }
+                        let key = dayKey(date)
+                        let map = paymentsByDayKey()
+                        if let payments = map[key], !payments.isEmpty {
+                            popupPayments = payments
+                            popupDate = date
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.95)) {
+                                showDayPopup = true
+                            }
+                        }
+                    }
+
                     Spacer(minLength: 12)
                 }
                 .background(bg.ignoresSafeArea())
-                
-                // BOTTOM SHEET
+
+                // ⬇️ Explicitly anchor the bottom sheet to the bottom of the screen
                 bottomSheet(geo: geo)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+
+                // ====== Center Popup Overlay ======
+                if showDayPopup {
+                    // Dimmed backdrop
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.22, dampingFraction: 0.95)) {
+                                showDayPopup = false
+                            }
+                        }
+                        .zIndex(100)
+
+                    // Popup card (centered because ZStack is center-aligned)
+                    VStack(spacing: 14) {
+                        Text(popupTitle())
+                            .font(.headline)
+                            .foregroundColor(textLight)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        if popupPayments.isEmpty {
+                            Text("No payments on this date.")
+                                .foregroundColor(textMuted)
+                                .font(.subheadline)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            VStack(spacing: 10) {
+                                ForEach(popupPayments, id: \.id) { item in
+                                    HStack {
+                                        Text(item.merchant_name)
+                                            .foregroundColor(textLight)
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                        Spacer()
+                                        Text(formatAmount(item.amount))
+                                            .foregroundColor(textLight)
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                    }
+                                }
+                            }
+                        }
+
+                        Button(action: {
+                            withAnimation(.spring(response: 0.22, dampingFraction: 0.95)) {
+                                showDayPopup = false
+                            }
+                        }) {
+                            Text("Close")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(indigo)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        }
+                        .padding(.top, 6)
+                    }
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(Color(red: 0.13, green: 0.13, blue: 0.16))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                            )
+                            .shadow(color: .black.opacity(0.45), radius: 20)
+                    )
+                    .frame(maxWidth: 360)
+                    .padding(.horizontal, 24)
+                    .zIndex(101)
+                    .transition(.scale.combined(with: .opacity))
+                }
             }
         }
+        .task {
+            await loadUpcoming()
+        }
+        .sheet(isPresented: $showAddRecurring) {
+            ReviewRecurringTransactionView(
+                onCancel: { showAddRecurring = false },
+                onSaved: {
+                    showAddRecurring = false
+                    Task { await loadUpcoming() }
+                }
+            )
+        }
     }
-    
+
     @ViewBuilder
     private func bottomSheet(geo: GeometryProxy) -> some View {
-        let peekHeight: CGFloat = 140
+        let peekHeight: CGFloat = 176
         let fullHeight = geo.size.height * 0.7
-        
-        // Lift above tab bar / FAB
+
         let bottomGutter = geo.safeAreaInsets.bottom + 90
-        let baseOffset = geo.size.height - peekHeight - bottomGutter         // collapsed (down)
-        let expandedOffset = geo.size.height - fullHeight - bottomGutter     // expanded (up)
-        let travel = baseOffset - expandedOffset                              // positive
-        
-        // Follow finger while dragging, but clamp to our two bounds
+        let baseOffset = geo.size.height - peekHeight - bottomGutter
+        let expandedOffset = geo.size.height - fullHeight - bottomGutter
+        let travel = baseOffset - expandedOffset
+
         let currentOffset = baseOffset + sheetOffset + dragOffset
         let clampedOffset = min(baseOffset, max(expandedOffset, currentOffset))
-        
+
+        let isExpanded = sheetOffset != 0
+
         VStack(spacing: 0) {
-            // ======= HANDLE AREA =======
             let handleHeight: CGFloat = 36
             ZStack {
                 Capsule()
@@ -133,22 +240,23 @@ struct RecurringTab: View {
                     sheetOffset = (sheetOffset == 0) ? -travel : 0
                 }
             }
-            
-            // CONTENT
+
             UpcomingPaymentsSheet(
                 textLight: textLight,
                 textMuted: textMuted,
-                indigo: indigo
+                indigo: indigo,
+                items: upcoming,
+                showContent: isExpanded
             )
         }
         .frame(height: fullHeight, alignment: .top)
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 22)
-                .fill(sheetBG) // 🔶 bold orange
+                .fill(sheetBG)
                 .overlay(
                     RoundedRectangle(cornerRadius: 22)
-                        .stroke(sheetBorder, lineWidth: 1) // darker outline
+                        .stroke(sheetBorder, lineWidth: 1)
                 )
                 .shadow(color: .black.opacity(0.35), radius: 12, y: -4)
         )
@@ -156,8 +264,7 @@ struct RecurringTab: View {
         .animation(.interactiveSpring(response: 0.22, dampingFraction: 0.9), value: dragOffset)
         .zIndex(1)
     }
-    
-    // Rubber-band only when dragging beyond [lower, upper] bounds.
+
     private func rubberBandOverflow(current: CGFloat, lower: CGFloat, upper: CGFloat) -> CGFloat {
         if current < lower {
             let over = lower - current
@@ -171,6 +278,63 @@ struct RecurringTab: View {
     }
     private func rubberBand(_ x: CGFloat, c: CGFloat = 0.55) -> CGFloat {
         (1 - (1 / (x * c + 1)))
+    }
+
+    private func loadUpcoming() async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+            let rows = try await RecurringTransactionsService.shared.listRecurringTransactions(userId: userId)
+            await MainActor.run {
+                self.upcoming = rows
+            }
+        } catch {
+            await MainActor.run {
+                self.upcoming = []
+            }
+        }
+    }
+
+    // MARK: - Day Key Helpers / Mapping
+    private func dayKey(_ date: Date) -> String {
+        let comps = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", comps.year ?? 0, comps.month ?? 0, comps.day ?? 0)
+    }
+
+    private func paymentsByDayKey() -> [String: [RecurringTransactionsService.DBRecurringTransaction]] {
+        var map: [String: [RecurringTransactionsService.DBRecurringTransaction]] = [:]
+        let inF = DateFormatter()
+        inF.calendar = Calendar(identifier: .gregorian)
+        inF.locale = Locale(identifier: "en_US_POSIX")
+        inF.timeZone = TimeZone.current
+        inF.dateFormat = "yyyy-MM-dd"
+
+        for item in upcoming {
+            if let d = inF.date(from: item.next_date) {
+                let key = dayKey(d)
+                map[key, default: []].append(item)
+            }
+        }
+        return map
+    }
+
+    // For the calendar markers
+    private func markedDayKeys() -> Set<String> {
+        Set(paymentsByDayKey().keys)
+    }
+
+    // Popup helpers
+    private func popupTitle() -> String {
+        guard let d = popupDate else { return "Payments" }
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
+        return "Payments on \(f.string(from: d))"
+    }
+
+    private func formatAmount(_ amount: Double) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .currency
+        return f.string(from: NSNumber(value: amount)) ?? String(format: "$%.2f", amount)
     }
 }
 

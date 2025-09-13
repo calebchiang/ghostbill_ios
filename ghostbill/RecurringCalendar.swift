@@ -16,6 +16,8 @@ struct RecurringCalendar: View {
     var textMuted: Color
     var cardBG: Color
 
+    var markedDayKeys: Set<String> = []
+
     private let monthsBefore = 12
     private let monthsAfter = 12
 
@@ -38,7 +40,8 @@ struct RecurringCalendar: View {
                                 selection: $selection,
                                 accent: accent,
                                 textLight: textLight,
-                                textMuted: textMuted
+                                textMuted: textMuted,
+                                markedDayKeys: markedDayKeys
                             )
                         }
                         .id(month)
@@ -72,24 +75,31 @@ private struct MonthGrid: View {
     var accent: Color
     var textLight: Color
     var textMuted: Color
+    var markedDayKeys: Set<String>
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 0, alignment: .center), count: 7)
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: 0) {
             ForEach(cellsForMonth(), id: \.self) { cell in
+                let hasMarker: Bool = {
+                    guard let d = cell.date, cell.inMonth else { return false }
+                    return markedDayKeys.contains(dayKey(d))
+                }()
+
                 DayCell(
                     cell: cell,
                     isSelected: isSelected(cell.date),
                     accent: accent,
                     textLight: textLight,
-                    textMuted: textMuted
+                    textMuted: textMuted,
+                    hasMarker: hasMarker
                 )
                 .frame(height: 70)
                 .contentShape(Rectangle())
                 .onTapGesture {
                     guard let d = cell.date, cell.inMonth else { return }
-                    selection = d
+                    selection = d  // parent decides whether to show popup
                 }
                 .overlay(
                     Rectangle()
@@ -134,6 +144,11 @@ private struct MonthGrid: View {
 
         return cells
     }
+
+    private func dayKey(_ d: Date) -> String {
+        let comps = Calendar.current.dateComponents([.year, .month, .day], from: d)
+        return String(format: "%04d-%02d-%02d", comps.year ?? 0, comps.month ?? 0, comps.day ?? 0)
+    }
 }
 
 struct DayCellModel: Hashable {
@@ -148,9 +163,14 @@ private struct DayCell: View {
     let accent: Color
     let textLight: Color
     let textMuted: Color
+    let hasMarker: Bool
+
+    /// green dot for upcoming payment
+    private let markerGreen = Color(red: 0.25, green: 0.82, blue: 0.47)
 
     var body: some View {
         ZStack {
+            // Selection/today background behind the number
             if isSelected {
                 Circle()
                     .fill(accent)
@@ -161,12 +181,22 @@ private struct DayCell: View {
                     .frame(width: 32, height: 32)
             }
 
+            // Day number
             Text(dayString)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundColor(fgColor)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .opacity(cell.inMonth ? 1.0 : 0.3)
+        // Green marker dot centered under the number
+        .overlay(alignment: .bottom) {
+            if hasMarker && cell.inMonth {
+                Circle()
+                    .fill(markerGreen)
+                    .frame(width: 8, height: 8)
+                    .padding(.bottom, 8) // adjust higher/lower by changing this value
+            }
+        }
     }
 
     private var dayString: String {
@@ -179,6 +209,7 @@ private struct DayCell: View {
     }
 }
 
+// MARK: - Date helpers
 extension Date {
     func startOfMonth() -> Date {
         let cal = Calendar.current

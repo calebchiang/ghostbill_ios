@@ -13,7 +13,6 @@ struct ReviewTransactionView: View {
     var onScanAgain: () -> Void
     var onCancel: () -> Void
 
-    // State (prefilled via init)
     @State private var merchant: String
     @State private var amount: String
     @State private var date: Date
