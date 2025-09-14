@@ -9,7 +9,7 @@ import SwiftUI
 
 struct CategorySlice: Identifiable {
     let id = UUID()
-    let category: String
+    let category: String  // raw category label from DB (e.g., "groceries")
     let total: Double
 }
 
@@ -20,24 +20,13 @@ struct Overview: View {
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
     private let textMuted = Color(red: 0.80, green: 0.80, blue: 0.85)
 
-    private let palette: [Color] = [
-        Color(red: 0.31, green: 0.27, blue: 0.90),
-        Color(red: 0.15, green: 0.72, blue: 0.47),
-        Color(red: 0.97, green: 0.64, blue: 0.14),
-        Color(red: 0.93, green: 0.26, blue: 0.30),
-        Color(red: 0.19, green: 0.60, blue: 0.93),
-        Color(red: 0.75, green: 0.27, blue: 0.78),
-        Color(red: 0.95, green: 0.77, blue: 0.06),
-        Color(red: 0.31, green: 0.83, blue: 0.76),
-        Color(red: 0.92, green: 0.47, blue: 0.63),
-        Color(red: 0.54, green: 0.58, blue: 0.66)
-    ]
-
     var body: some View {
         let monthName = formattedMonthTitle()
         let slices = categorySlicesForCurrentMonth()
         let total = slices.reduce(0) { $0 + $1.total }
-        let colors: [Color] = slices.indices.map { palette[$0 % palette.count] }
+
+        // Colors derived from the canonical category tint so they match CategoryBadge icons.
+        let colors: [Color] = slices.map { colorForCategoryString($0.category) }
 
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -47,7 +36,6 @@ struct Overview: View {
                     .foregroundColor(textLight)
                     .padding(.bottom, 16)
                 Spacer()
-                
             }
 
             ZStack {
@@ -99,25 +87,57 @@ struct Overview: View {
         .background(bg.opacity(0.001))
     }
 
+    // MARK: - Data prep
+
     private func categorySlicesForCurrentMonth() -> [CategorySlice] {
         let cal = Calendar.current
         let now = Date()
         let startOfMonth = cal.date(from: cal.dateComponents([.year, .month], from: now))!
         let endOfMonth = cal.date(byAdding: .month, value: 1, to: startOfMonth)!
 
+        // Only expenses in the donut
         let monthTxs = transactions.filter { tx in
             tx.date >= startOfMonth && tx.date < endOfMonth && tx.amount < 0
         }
 
         var buckets: [String: Double] = [:]
         for tx in monthTxs {
-            let key = (tx.category?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "Other"
+            // Normalize category string; fallback to "Other"
+            let key = (tx.category?.trimmingCharacters(in: .whitespacesAndNewlines))
+                .flatMap { $0.isEmpty ? nil : $0 } ?? "Other"
             buckets[key, default: 0] += abs(tx.amount)
         }
 
         return buckets
             .map { CategorySlice(category: $0.key, total: $0.value) }
             .sorted { $0.total > $1.total }
+    }
+
+    // MARK: - Helpers
+
+    /// Map raw category string from DB -> canonical enum -> tint color used in icons.
+    private func colorForCategoryString(_ raw: String) -> Color {
+        let key = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if let cat = ExpenseCategory(rawValue: key) {
+            return cat.tint
+        }
+        // Simple aliasing if your DB has human labels like "Food & Drink", etc.
+        switch key {
+        case "food & drink", "restaurant", "food":
+            return ExpenseCategory.dining.tint
+        case "grocery", "supermarket":
+            return ExpenseCategory.groceries.tint
+        case "gas", "petrol":
+            return ExpenseCategory.fuel.tint
+        case "transportation":
+            return ExpenseCategory.transport.tint
+        case "rent", "mortgage":
+            return ExpenseCategory.housing.tint
+        case "bills", "phone", "internet", "power", "electricity":
+            return ExpenseCategory.utilities.tint
+        default:
+            return ExpenseCategory.other.tint
+        }
     }
 
     private func formattedMonthTitle() -> String {

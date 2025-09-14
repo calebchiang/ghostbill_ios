@@ -67,7 +67,7 @@ struct MonthlySavingsCard: View {
             switch state {
             case .loading:
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("$0")
+                    Text("0")
                         .font(.system(size: 40, weight: .bold))
                         .foregroundColor(good)
                     HStack {
@@ -114,10 +114,27 @@ struct MonthlySavingsCard: View {
                         }
                     }
                 } else {
-                    // Big savings number
-                    Text("$\(Int(d.savings))")
+                    // ---- UI-only clamp rule ----
+                    let savedRaw = d.savings            // may be negative from service
+                    let saved = max(0, savedRaw)        // never below 0 in UI
+                    let overspent = max(0, -savedRaw)   // positive when spending > income
+
+                    // Big savings number (clamped)
+                    Text(formatNumber(saved))
                         .font(.system(size: 40, weight: .bold))
-                        .foregroundColor(good)
+                        .foregroundColor(saved == 0 ? textMuted : good)
+
+                    // Optional overspent note
+                    if overspent > 0 {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                            Text("Overspent by \(formatNumber(overspent))")
+                                .font(.footnote)
+                                .foregroundColor(.orange)
+                        }
+                    }
 
                     // Breakdown
                     VStack(spacing: 8) {
@@ -125,7 +142,7 @@ struct MonthlySavingsCard: View {
                             Text("Income")
                                 .foregroundColor(textMuted)
                             Spacer()
-                            Text("$\(Int(d.income))")
+                            Text(formatNumber(d.income))
                                 .foregroundColor(textLight)
                                 .fontWeight(.semibold)
                         }
@@ -133,7 +150,7 @@ struct MonthlySavingsCard: View {
                             Text("Spending")
                                 .foregroundColor(textMuted)
                             Spacer()
-                            Text("$\(Int(d.spending))")
+                            Text(formatNumber(d.spending))
                                 .foregroundColor(textLight)
                                 .fontWeight(.semibold)
                         }
@@ -142,8 +159,8 @@ struct MonthlySavingsCard: View {
                             Text("Savings")
                                 .foregroundColor(textMuted)
                             Spacer()
-                            Text("$\(Int(d.savings))")
-                                .foregroundColor(good)
+                            Text(formatNumber(saved)) // clamped value
+                                .foregroundColor(saved == 0 ? textMuted : good)
                                 .fontWeight(.bold)
                         }
                     }
@@ -166,6 +183,17 @@ struct MonthlySavingsCard: View {
         .accessibilityLabel(accessibilityText)
     }
 
+    // MARK: - Helpers
+
+    private func formatNumber(_ value: Double) -> String {
+        // Plain number with grouping, no currency symbol
+        let nf = NumberFormatter()
+        nf.numberStyle = .decimal
+        nf.maximumFractionDigits = 0
+        nf.minimumFractionDigits = 0
+        return nf.string(from: NSNumber(value: value)) ?? "\(Int(value))"
+    }
+
     private var accessibilityText: String {
         switch state {
         case .loading:
@@ -175,7 +203,8 @@ struct MonthlySavingsCard: View {
             if d.hasIncome == false {
                 return "No income reported for \(month)."
             } else {
-                return "Total saved this month \(month): \(Int(d.savings))"
+                let saved = max(0, d.savings)
+                return "Total saved this month \(month): \(Int(saved))"
             }
         }
     }

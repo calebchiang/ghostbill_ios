@@ -26,6 +26,16 @@ struct SavingsCardData: Sendable {
     let monthEnd: Date
 }
 
+// MARK: - Savings history for charts
+struct SavingsHistory: Sendable {
+    struct Point: Sendable {
+        let monthStart: Date
+        let savings: Double  // max(0, income - spending)
+    }
+    let reported: [Point]   // months with income
+    let unreported: [Date]  // months with activity but without income
+}
+
 struct TransactionsService {
     static let shared = TransactionsService()
     private let client = SupabaseManager.shared.client
@@ -100,6 +110,28 @@ struct TransactionsService {
             throw NSError(domain: "TransactionsService", code: -10, userInfo: [NSLocalizedDescriptionKey: "Failed to compute month bounds."])
         }
         return (monthStart, monthEnd)
+    }
+
+    /// Returns true if there is at least one transaction (any type) in the month.
+    private func hasAnyActivityForMonth(
+        userId: UUID,
+        monthDate: Date,
+        timezone: TimeZone = .current
+    ) async throws -> Bool {
+        let (start, end) = try monthBounds(for: monthDate, timezone: timezone)
+
+        struct Row: Decodable { let id: UUID }
+        let rows: [Row] = try await client
+            .from("transactions")
+            .select("id")
+            .eq("user_id", value: userId)
+            .gte("date", value: start)
+            .lt("date", value: end)
+            .limit(1)
+            .execute()
+            .value
+
+        return !rows.isEmpty
     }
 
     // MARK: - Income presence
@@ -203,6 +235,7 @@ struct TransactionsService {
             )
         }
 
+        // ❗️Fix: userId is already a UUID; just pass it through.
         let ms = try await computeMonthlySavings(userId: userId, monthDate: monthDate, timezone: timezone)
         return SavingsCardData(
             hasIncome: true,
@@ -213,6 +246,69 @@ struct TransactionsService {
             monthStart: ms.monthStart,
             monthEnd: ms.monthEnd
         )
+    }
+
+    // MARK: - Savings history helper (for charts)
+
+    /// Returns savings points for the last `monthsBack` months and the months missing income.
+    /// - reported: months that have income, with per-month savings clamped to >= 0
+    /// - unreported: months in range that have *activity* but **no** income
+    func getSavingsHistory(
+        userId: UUID,
+        monthsBack: Int = 12,
+        now: Date = Date(),
+        timezone: TimeZone = .current
+    ) async throws -> SavingsHistory {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = timezone
+
+        // Build month starts from oldest -> newest
+        guard let currentMonthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) else {
+            throw NSError(domain: "TransactionsService", code: -11, userInfo: [NSLocalizedDescriptionKey: "Failed to compute current month start."])
+        }
+        let monthStarts: [Date] = (0..<monthsBack).compactMap { i in
+            cal.date(byAdding: .month, value: -(monthsBack - 1 - i), to: currentMonthStart)
+        }
+
+        // 1) For each month, compute both flags in parallel (THROWING group)
+        struct Flags { let hasIncome: Bool; let hasActivity: Bool }
+        let flags: [Flags] = try await withThrowingTaskGroup(of: (Int, Flags).self) { group in
+            for (idx, m) in monthStarts.enumerated() {
+                group.addTask {
+                    async let inc = self.hasIncomeForMonth(userId: userId, monthDate: m, timezone: timezone)
+                    async let act = self.hasAnyActivityForMonth(userId: userId, monthDate: m, timezone: timezone)
+                    let (hasIncome, hasActivity) = try await (inc, act)
+                    return (idx, Flags(hasIncome: hasIncome, hasActivity: hasActivity))
+                }
+            }
+            var tmp = Array(repeating: Flags(hasIncome: false, hasActivity: false), count: monthStarts.count)
+            for try await (idx, f) in group { tmp[idx] = f }
+            return tmp
+        }
+
+        // 2) For months with income, compute savings points (THROWING group)
+        let reportedPoints: [SavingsHistory.Point] = try await withThrowingTaskGroup(of: (Int, SavingsHistory.Point).self) { group in
+            for (idx, m) in monthStarts.enumerated() where flags[idx].hasIncome {
+                group.addTask {
+                    async let inc = self.sumIncome(userId: userId, monthDate: m, timezone: timezone)
+                    async let exp = self.sumSpending(userId: userId, monthDate: m, timezone: timezone)
+                    let (income, spending) = try await (inc, exp)
+                    let savings = max(0, income - spending) // clamp for chart
+                    return (idx, SavingsHistory.Point(monthStart: m, savings: savings))
+                }
+            }
+            var pairs: [(Int, SavingsHistory.Point)] = []
+            for try await pair in group { pairs.append(pair) }
+            return pairs.sorted { $0.0 < $1.0 }.map { $0.1 }
+        }
+
+        // 3) Unreported months = activity present BUT no income
+        let unreported: [Date] = zip(monthStarts, flags)
+            .filter { $0.1.hasActivity && !$0.1.hasIncome }
+            .map { $0.0 }
+            .sorted()
+
+        return SavingsHistory(reported: reportedPoints, unreported: unreported)
     }
 
     // MARK: - Insert income for a month (single helper)
