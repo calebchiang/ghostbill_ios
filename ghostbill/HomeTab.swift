@@ -8,7 +8,7 @@
 import SwiftUI
 import Supabase
 
-struct DBTransaction: Decodable, Identifiable {
+struct DBTransaction: Decodable, Identifiable, Hashable {
     let id: UUID
     let user_id: UUID
     let amount: Double
@@ -28,38 +28,65 @@ struct HomeTab: View {
     @State private var transactions: [DBTransaction] = []
     @State private var loading = true
 
+    // Navigation path for pushing TransactionView
+    @State private var navPath: [DBTransaction] = []
+
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
 
     var body: some View {
-        ZStack {
-            bg.ignoresSafeArea()
+        NavigationStack(path: $navPath) {
+            ZStack {
+                bg.ignoresSafeArea()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Overview(transactions: transactions)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Overview(transactions: transactions)
 
-                    HStack {
-                        Text("Recent Transactions")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(textLight)
-                        Spacer()
-                    }
-                    .padding(.horizontal)
+                        HStack {
+                            Text("Recent Transactions")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(textLight)
+                            Spacer()
+                        }
+                        .padding(.horizontal)
 
-                    if loading {
-                        // 👉 Skeleton that matches TransactionsList’s card layout
-                        TransactionsSkeletonList(rowCount: 8)
+                        if loading {
+                            TransactionsSkeletonList(rowCount: 8)
+                                .padding(.horizontal)
+                        } else {
+                            TransactionsList(
+                                transactions: transactions,
+                                onSelect: { tx in
+                                    navPath.append(tx)
+                                }
+                            )
                             .padding(.horizontal)
-                    } else {
-                        TransactionsList(transactions: transactions)
-                            .padding(.horizontal)
-                    }
+                        }
 
-                    Spacer(minLength: 24)
+                        Spacer(minLength: 24)
+                    }
+                    .padding(.top, 12)
                 }
-                .padding(.top, 12)
+            }
+            .navigationDestination(for: DBTransaction.self) { tx in
+                TransactionView(
+                    transaction: tx,
+                    onUpdated: { updated in
+                        // Update the item in place and resort by date desc
+                        if let idx = transactions.firstIndex(where: { $0.id == updated.id }) {
+                            transactions[idx] = updated
+                        } else {
+                            transactions.append(updated)
+                        }
+                        transactions.sort { $0.date > $1.date }
+                    },
+                    onDeleted: { id in
+                        transactions.removeAll { $0.id == id }
+                    }
+                )
+                .navigationBarTitleDisplayMode(.inline)
             }
         }
         // Runs on first appear and whenever reloadKey changes

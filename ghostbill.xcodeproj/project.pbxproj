@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00262F0A2E768580004EC4C8 /* TransactionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00262F092E768577004EC4C8 /* TransactionView.swift */; };
 		003D8B872E74E472001ACCF7 /* RecurringTransactionsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003D8B862E74E465001ACCF7 /* RecurringTransactionsService.swift */; };
 		003D8B892E74E550001ACCF7 /* ReviewRecurringTransactionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003D8B882E74E549001ACCF7 /* ReviewRecurringTransactionView.swift */; };
 		005F1FDA2E7670F800851FF7 /* SpendingAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005F1FD92E7670F200851FF7 /* SpendingAnalyticsView.swift */; };
@@ -72,6 +73,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		00262F092E768577004EC4C8 /* TransactionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionView.swift; sourceTree = "<group>"; };
 		003D8B862E74E465001ACCF7 /* RecurringTransactionsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringTransactionsService.swift; sourceTree = "<group>"; };
 		003D8B882E74E549001ACCF7 /* ReviewRecurringTransactionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewRecurringTransactionView.swift; sourceTree = "<group>"; };
 		005F1FD92E7670F200851FF7 /* SpendingAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpendingAnalyticsView.swift; sourceTree = "<group>"; };
@@ -180,6 +182,7 @@
 		00F5790F2E70AB190041A410 /* ghostbill */ = {
 			isa = PBXGroup;
 			children = (
+				00262F092E768577004EC4C8 /* TransactionView.swift */,
 				005F1FDD2E76711C00851FF7 /* TrendsAnalyticsView.swift */,
 				005F1FDB2E76710500851FF7 /* SavingsAnalyticsView.swift */,
 				005F1FD92E7670F200851FF7 /* SpendingAnalyticsView.swift */,
@@ -394,6 +397,7 @@
 				005F1FDA2E7670F800851FF7 /* SpendingAnalyticsView.swift in Sources */,
 				00D92BBB2E7223C800EDD565 /* SavingsTab.swift in Sources */,
 				00D92BB52E72196C00EDD565 /* MainTabView.swift in Sources */,
+				00262F0A2E768580004EC4C8 /* TransactionView.swift in Sources */,
 				00CD33412E73993700313283 /* TransactionsSkeletonList.swift in Sources */,
 				005F1FDE2E76712000851FF7 /* TrendsAnalyticsView.swift in Sources */,
 				00D92BC32E7236D100EDD565 /* Overview.swift in Sources */,

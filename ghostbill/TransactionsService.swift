@@ -108,6 +108,91 @@ struct TransactionsService {
         return inserted
     }
 
+    // MARK: - 🔧 Single-transaction helpers (Edit / Remove Prep)
+
+    /// Fetch a single transaction owned by the user.
+    func fetchTransaction(userId: UUID, id: UUID) async throws -> DBTransaction? {
+        let rows: [DBTransaction] = try await client
+            .from("transactions")
+            .select()
+            .eq("user_id", value: userId)
+            .eq("id", value: id)
+            .limit(1)
+            .execute()
+            .value
+        return rows.first
+    }
+
+    /// Partial update helper. Only non-nil fields are patched.
+    /// Returns the updated DBTransaction.
+    func updateTransaction(
+        userId: UUID,
+        id: UUID,
+        amount: Double? = nil,
+        currency: String? = nil,
+        date: Date? = nil,
+        merchant: String? = nil,
+        category: ExpenseCategory? = nil,
+        note: String? = nil
+    ) async throws -> DBTransaction {
+        struct Patch: Encodable {
+            let amount: Double?
+            let currency: String?
+            let date: Date?
+            let merchant: String?
+            let category: String?
+            let note: String?
+
+            enum CodingKeys: String, CodingKey {
+                case amount, currency, date, merchant, category, note
+            }
+            // Encode ONLY non-nil keys so we don't overwrite with nulls.
+            func encode(to encoder: Encoder) throws {
+                var c = encoder.container(keyedBy: CodingKeys.self)
+                if let amount { try c.encode(amount, forKey: .amount) }
+                if let currency { try c.encode(currency, forKey: .currency) }
+                if let date { try c.encode(date, forKey: .date) }
+                if let merchant { try c.encode(merchant, forKey: .merchant) }
+                if let category { try c.encode(category, forKey: .category) }
+                if let note { try c.encode(note, forKey: .note) }
+            }
+        }
+
+        let patch = Patch(
+            amount: amount,
+            currency: currency,
+            date: date,
+            merchant: merchant,
+            category: category?.rawValue,
+            note: note
+        )
+
+        let updated: DBTransaction = try await client
+            .from("transactions")
+            .update(patch)
+            .eq("id", value: id)
+            .eq("user_id", value: userId)
+            .select()
+            .single()
+            .execute()
+            .value
+
+        return updated
+    }
+
+    /// Deletes a transaction owned by the user.
+    /// Returns true if no error was thrown.
+    @discardableResult
+    func deleteTransaction(userId: UUID, id: UUID) async throws -> Bool {
+        _ = try await client
+            .from("transactions")
+            .delete()
+            .eq("id", value: id)
+            .eq("user_id", value: userId)
+            .execute()
+        return true
+    }
+
     // MARK: - Date helpers
 
     private func monthBounds(for monthDate: Date, timezone: TimeZone) throws -> (start: Date, end: Date) {

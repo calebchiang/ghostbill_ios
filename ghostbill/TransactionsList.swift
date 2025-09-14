@@ -60,6 +60,8 @@ struct TransactionRow: View {
 
 struct TransactionsList: View {
     let transactions: [DBTransaction]
+    var onSelect: (DBTransaction) -> Void = { _ in } // injected from parent
+
     @State private var page: Int = 1
     private let pageSize = 10
 
@@ -80,7 +82,15 @@ struct TransactionsList: View {
             } else {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(currentPageItems) { tx in
-                        TransactionRow(transaction: tx)
+                        // Make the entire row tappable
+                        Button {
+                            onSelect(tx)
+                        } label: {
+                            TransactionRow(transaction: tx)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
                         Divider().opacity(0.08)
                     }
                     pagerFooterRow
