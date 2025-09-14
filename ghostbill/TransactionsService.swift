@@ -10,8 +10,8 @@ import Supabase
 
 struct MonthlySavings: Sendable {
     let income: Double
-    let spending: Double   // absolute outflows
-    let savings: Double    // income - spending
+    let spending: Double
+    let savings: Double
     let monthStart: Date
     let monthEnd: Date
 }
@@ -26,23 +26,36 @@ struct SavingsCardData: Sendable {
     let monthEnd: Date
 }
 
-// MARK: - Savings history for charts
 struct SavingsHistory: Sendable {
     struct Point: Sendable {
         let monthStart: Date
-        let savings: Double  // max(0, income - spending)
+        let savings: Double
     }
-    let reported: [Point]   // months with income
-    let unreported: [Date]  // months with activity but without income
+    let reported: [Point]
+    let unreported: [Date]
+}
+
+struct TopExpense: Sendable, Identifiable, Decodable {
+    let id: UUID
+    let merchant: String?
+    let date: Date
+    let amount: Double
+    let currency: String
+}
+
+// Top merchants by transaction count (all-time)
+struct TopMerchantCount: Sendable, Identifiable, Decodable {
+    var id: String { merchant }   // merchant name as stable id
+    let merchant: String
+    let count: Int
 }
 
 struct TransactionsService {
     static let shared = TransactionsService()
     private let client = SupabaseManager.shared.client
 
-    // MARK: - Profile
+    // MARK: - Profile / Base
 
-    // Fetch currency from profiles (may be nil)
     func fetchProfileCurrency(userId: UUID) async throws -> String? {
         struct Row: Decodable { let currency: String? }
         let rows: [Row] = try await client
@@ -55,9 +68,6 @@ struct TransactionsService {
         return rows.first?.currency
     }
 
-    // MARK: - Insert one transaction
-
-    // Insert a single transaction and return the inserted row
     func insertTransaction(
         userId: UUID,
         amount: Double,
@@ -98,9 +108,8 @@ struct TransactionsService {
         return inserted
     }
 
-    // MARK: - Month helpers
+    // MARK: - Date helpers
 
-    /// Consistent month range in the given timezone: [start, end)
     private func monthBounds(for monthDate: Date, timezone: TimeZone) throws -> (start: Date, end: Date) {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = timezone
@@ -112,7 +121,8 @@ struct TransactionsService {
         return (monthStart, monthEnd)
     }
 
-    /// Returns true if there is at least one transaction (any type) in the month.
+    // MARK: - Activity / Income flags
+
     private func hasAnyActivityForMonth(
         userId: UUID,
         monthDate: Date,
@@ -133,8 +143,6 @@ struct TransactionsService {
 
         return !rows.isEmpty
     }
-
-    // MARK: - Income presence
 
     func hasIncomeForCurrentMonth(userId: UUID, now: Date = Date(), timezone: TimeZone = .current) async throws -> Bool {
         try await hasIncomeForMonth(userId: userId, monthDate: now, timezone: timezone)
@@ -158,9 +166,8 @@ struct TransactionsService {
         return !rows.isEmpty
     }
 
-    // MARK: - Month aggregates (client-side)
+    // MARK: - Aggregates
 
-    /// Sum of all income amounts (positive) in the month (client-side sum).
     func sumIncome(userId: UUID, monthDate: Date, timezone: TimeZone = .current) async throws -> Double {
         let (start, end) = try monthBounds(for: monthDate, timezone: timezone)
 
@@ -175,12 +182,9 @@ struct TransactionsService {
             .execute()
             .value
 
-        // Income rows are stored positive by design
         return rows.reduce(0) { $0 + $1.amount }
     }
 
-    /// Sum of monthly spending (absolute outflows, client-side).
-    /// Assumes expenses are stored as negative amounts. Excludes income rows.
     func sumSpending(userId: UUID, monthDate: Date, timezone: TimeZone = .current) async throws -> Double {
         let (start, end) = try monthBounds(for: monthDate, timezone: timezone)
 
@@ -190,17 +194,15 @@ struct TransactionsService {
             .select("amount,type")
             .eq("user_id", value: userId)
             .neq("type", value: "income")
-            .lt("amount", value: 0) // only outflows
+            .lt("amount", value: 0)
             .gte("date", value: start)
             .lt("date", value: end)
             .execute()
             .value
 
-        // amounts are negative -> take absolute
         return rows.reduce(0) { $0 + abs($1.amount) }
     }
 
-    /// Compute income, spending, and savings for the month.
     func computeMonthlySavings(userId: UUID, monthDate: Date, timezone: TimeZone = .current) async throws -> MonthlySavings {
         let (start, end) = try monthBounds(for: monthDate, timezone: timezone)
         async let incomeTask = sumIncome(userId: userId, monthDate: monthDate, timezone: timezone)
@@ -216,8 +218,6 @@ struct TransactionsService {
         )
     }
 
-    /// One-shot fetch to power the "Total saved this month" card.
-    /// If no income has been reported yet, returns hasIncome=false and zeros.
     func getSavingsCardData(userId: UUID, monthDate: Date, timezone: TimeZone = .current) async throws -> SavingsCardData {
         let hasIncome = try await hasIncomeForMonth(userId: userId, monthDate: monthDate, timezone: timezone)
         let currency = (try? await fetchProfileCurrency(userId: userId)) ?? "USD"
@@ -235,7 +235,6 @@ struct TransactionsService {
             )
         }
 
-        // ❗️Fix: userId is already a UUID; just pass it through.
         let ms = try await computeMonthlySavings(userId: userId, monthDate: monthDate, timezone: timezone)
         return SavingsCardData(
             hasIncome: true,
@@ -248,11 +247,8 @@ struct TransactionsService {
         )
     }
 
-    // MARK: - Savings history helper (for charts)
+    // MARK: - Savings history
 
-    /// Returns savings points for the last `monthsBack` months and the months missing income.
-    /// - reported: months that have income, with per-month savings clamped to >= 0
-    /// - unreported: months in range that have *activity* but **no** income
     func getSavingsHistory(
         userId: UUID,
         monthsBack: Int = 12,
@@ -262,7 +258,6 @@ struct TransactionsService {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = timezone
 
-        // Build month starts from oldest -> newest
         guard let currentMonthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) else {
             throw NSError(domain: "TransactionsService", code: -11, userInfo: [NSLocalizedDescriptionKey: "Failed to compute current month start."])
         }
@@ -270,7 +265,6 @@ struct TransactionsService {
             cal.date(byAdding: .month, value: -(monthsBack - 1 - i), to: currentMonthStart)
         }
 
-        // 1) For each month, compute both flags in parallel (THROWING group)
         struct Flags { let hasIncome: Bool; let hasActivity: Bool }
         let flags: [Flags] = try await withThrowingTaskGroup(of: (Int, Flags).self) { group in
             for (idx, m) in monthStarts.enumerated() {
@@ -286,14 +280,13 @@ struct TransactionsService {
             return tmp
         }
 
-        // 2) For months with income, compute savings points (THROWING group)
         let reportedPoints: [SavingsHistory.Point] = try await withThrowingTaskGroup(of: (Int, SavingsHistory.Point).self) { group in
             for (idx, m) in monthStarts.enumerated() where flags[idx].hasIncome {
                 group.addTask {
                     async let inc = self.sumIncome(userId: userId, monthDate: m, timezone: timezone)
                     async let exp = self.sumSpending(userId: userId, monthDate: m, timezone: timezone)
                     let (income, spending) = try await (inc, exp)
-                    let savings = max(0, income - spending) // clamp for chart
+                    let savings = max(0, income - spending)
                     return (idx, SavingsHistory.Point(monthStart: m, savings: savings))
                 }
             }
@@ -302,7 +295,6 @@ struct TransactionsService {
             return pairs.sorted { $0.0 < $1.0 }.map { $0.1 }
         }
 
-        // 3) Unreported months = activity present BUT no income
         let unreported: [Date] = zip(monthStarts, flags)
             .filter { $0.1.hasActivity && !$0.1.hasIncome }
             .map { $0.0 }
@@ -311,16 +303,8 @@ struct TransactionsService {
         return SavingsHistory(reported: reportedPoints, unreported: unreported)
     }
 
-    // MARK: - Insert income for a month (single helper)
+    // MARK: - Income insert
 
-    /// Inserts a single **income** transaction bucketed to the given month.
-    /// - Parameters:
-    ///   - userId: current user id
-    ///   - amount: positive income amount (will be coerced to positive)
-    ///   - monthDate: any date within the month to report (default: today)
-    ///   - timezone: timezone used to compute the month's first day (default: device)
-    ///   - note: optional note; defaults to "Reported income for {Month Year}"
-    /// - Returns: the inserted DBTransaction
     func insertIncomeForMonth(
         userId: UUID,
         amount: Double,
@@ -328,23 +312,19 @@ struct TransactionsService {
         timezone: TimeZone = .current,
         note: String? = nil
     ) async throws -> DBTransaction {
-        // Validate amount
         let incomeAmount = abs(amount)
         guard incomeAmount > 0 else {
             throw NSError(domain: "TransactionsService", code: -2, userInfo: [NSLocalizedDescriptionKey: "Income amount must be greater than zero."])
         }
 
-        // Compute first day of the month in the provided timezone
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = timezone
         guard let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: monthDate)) else {
             throw NSError(domain: "TransactionsService", code: -3, userInfo: [NSLocalizedDescriptionKey: "Failed to compute month start."])
         }
 
-        // Resolve currency (fallback to USD)
         let currency = (try? await fetchProfileCurrency(userId: userId)) ?? "USD"
 
-        // Build payload explicitly including type = 'income'
         struct IncomePayload: Encodable {
             let user_id: UUID
             let amount: Double
@@ -356,7 +336,6 @@ struct TransactionsService {
             let type: String
         }
 
-        // Default note if none provided
         let df = DateFormatter()
         df.dateFormat = "LLLL yyyy"
         df.timeZone = timezone
@@ -364,9 +343,9 @@ struct TransactionsService {
 
         let payload = IncomePayload(
             user_id: userId,
-            amount: incomeAmount,               // positive
+            amount: incomeAmount,
             currency: currency,
-            date: monthStart,                   // bucket to first of month
+            date: monthStart,
             merchant: "Income",
             category: "income",
             note: note ?? "Reported income for \(monthLabel)",
@@ -382,6 +361,130 @@ struct TransactionsService {
             .value
 
         return inserted
+    }
+
+    // MARK: - Top expenses
+
+    func getTopExpensesForMonth(
+        userId: UUID,
+        monthDate: Date,
+        limit: Int = 10,
+        timezone: TimeZone = .current
+    ) async throws -> [TopExpense] {
+        let (start, end) = try monthBounds(for: monthDate, timezone: timezone)
+        return try await getTopExpenses(
+            userId: userId,
+            start: start,
+            end: end,
+            limit: limit
+        )
+    }
+
+    /// All-time top expenses (no date bounds).
+    func getTopExpensesAllTime(
+        userId: UUID,
+        limit: Int = 10
+    ) async throws -> [TopExpense] {
+        try await getTopExpenses(
+            userId: userId,
+            start: nil,
+            end: nil,
+            limit: limit
+        )
+    }
+
+    /// Generic top expenses over an optional window.
+    /// - Note: We fetch a small buffer and sort by absolute amount in Swift
+    ///         to ensure correctness when negatives represent spend.
+    func getTopExpenses(
+        userId: UUID,
+        start: Date? = nil,
+        end: Date? = nil,
+        limit: Int = 10
+    ) async throws -> [TopExpense] {
+        struct Row: Decodable {
+            let id: UUID
+            let merchant: String?
+            let date: Date
+            let amount: Double
+            let currency: String
+            let type: String?
+        }
+
+        var query = client
+            .from("transactions")
+            .select("id,merchant,date,amount,currency,type")
+            .eq("user_id", value: userId)
+            .neq("type", value: "income")
+            .lt("amount", value: 0)
+
+        if let start { query = query.gte("date", value: start) }
+        if let end   { query = query.lt("date", value: end) }
+
+        let rows: [Row] = try await query
+            .order("amount", ascending: true)         // most negative first (largest spend)
+            .limit(max(limit * 3, limit))             // fetch buffer, then sort by abs()
+            .execute()
+            .value
+
+        let top = rows
+            .sorted { abs($0.amount) > abs($1.amount) }
+            .prefix(limit)
+            .map {
+                TopExpense(
+                    id: $0.id,
+                    merchant: $0.merchant,
+                    date: $0.date,
+                    amount: abs($0.amount),
+                    currency: $0.currency
+                )
+            }
+
+        return Array(top)
+    }
+
+    // MARK: - Top merchants by count (all-time, client-side aggregate)
+
+    /// Returns the top merchants by number of transactions (all-time), excluding income rows
+    /// and excluding empty/null merchant names. Sorted desc by count, limited to `limit`.
+    /// Note: This implementation aggregates client-side to support SDKs without `.group(...)`.
+    func getTopMerchantsByCountAllTime(
+        userId: UUID,
+        limit: Int = 10
+    ) async throws -> [TopMerchantCount] {
+        struct Row: Decodable {
+            let merchant: String?
+            let type: String?
+        }
+
+        // Pull only the columns we need to keep payload light.
+        let rows: [Row] = try await client
+            .from("transactions")
+            .select("merchant,type")
+            .eq("user_id", value: userId)
+            .neq("type", value: "income")
+            .execute()
+            .value
+
+        // Case-insensitive counting while preserving a display name.
+        var counts: [String: (count: Int, display: String)] = [:]  // key = lowercased merchant
+        for r in rows {
+            guard let raw = r.merchant?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !raw.isEmpty else { continue }
+            let key = raw.lowercased()
+            if let cur = counts[key] {
+                counts[key] = (cur.count + 1, cur.display)
+            } else {
+                counts[key] = (1, raw)
+            }
+        }
+
+        let sorted = counts
+            .map { TopMerchantCount(merchant: $0.value.display, count: $0.value.count) }
+            .sorted { $0.count > $1.count }
+            .prefix(limit)
+
+        return Array(sorted)
     }
 }
 

@@ -9,6 +9,9 @@
 /* Begin PBXBuildFile section */
 		003D8B872E74E472001ACCF7 /* RecurringTransactionsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003D8B862E74E465001ACCF7 /* RecurringTransactionsService.swift */; };
 		003D8B892E74E550001ACCF7 /* ReviewRecurringTransactionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003D8B882E74E549001ACCF7 /* ReviewRecurringTransactionView.swift */; };
+		005F1FDA2E7670F800851FF7 /* SpendingAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005F1FD92E7670F200851FF7 /* SpendingAnalyticsView.swift */; };
+		005F1FDC2E76710D00851FF7 /* SavingsAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005F1FDB2E76710500851FF7 /* SavingsAnalyticsView.swift */; };
+		005F1FDE2E76712000851FF7 /* TrendsAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005F1FDD2E76711C00851FF7 /* TrendsAnalyticsView.swift */; };
 		00775F732E76349D003D3225 /* HistoricalSavingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00775F722E76349A003D3225 /* HistoricalSavingsView.swift */; };
 		00775F752E764EBB003D3225 /* SavingsHistoryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00775F742E764EA5003D3225 /* SavingsHistoryListView.swift */; };
 		00827B922E726C9400B9442A /* ReceiptScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00827B912E726C8F00B9442A /* ReceiptScannerView.swift */; };
@@ -71,6 +74,9 @@
 /* Begin PBXFileReference section */
 		003D8B862E74E465001ACCF7 /* RecurringTransactionsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringTransactionsService.swift; sourceTree = "<group>"; };
 		003D8B882E74E549001ACCF7 /* ReviewRecurringTransactionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewRecurringTransactionView.swift; sourceTree = "<group>"; };
+		005F1FD92E7670F200851FF7 /* SpendingAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpendingAnalyticsView.swift; sourceTree = "<group>"; };
+		005F1FDB2E76710500851FF7 /* SavingsAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavingsAnalyticsView.swift; sourceTree = "<group>"; };
+		005F1FDD2E76711C00851FF7 /* TrendsAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsAnalyticsView.swift; sourceTree = "<group>"; };
 		00775F722E76349A003D3225 /* HistoricalSavingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoricalSavingsView.swift; sourceTree = "<group>"; };
 		00775F742E764EA5003D3225 /* SavingsHistoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavingsHistoryListView.swift; sourceTree = "<group>"; };
 		00827B912E726C8F00B9442A /* ReceiptScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptScannerView.swift; sourceTree = "<group>"; };
@@ -174,6 +180,9 @@
 		00F5790F2E70AB190041A410 /* ghostbill */ = {
 			isa = PBXGroup;
 			children = (
+				005F1FDD2E76711C00851FF7 /* TrendsAnalyticsView.swift */,
+				005F1FDB2E76710500851FF7 /* SavingsAnalyticsView.swift */,
+				005F1FD92E7670F200851FF7 /* SpendingAnalyticsView.swift */,
 				00775F742E764EA5003D3225 /* SavingsHistoryListView.swift */,
 				00775F722E76349A003D3225 /* HistoricalSavingsView.swift */,
 				00DB88B02E76032F00201B12 /* CategoryIcons.swift */,
@@ -382,14 +391,17 @@
 				00D92BAF2E72066700EDD565 /* SessionStore.swift in Sources */,
 				00827B922E726C9400B9442A /* ReceiptScannerView.swift in Sources */,
 				0094690A2E73C8C2009F7EC0 /* UpcomingPaymentsSheet.swift in Sources */,
+				005F1FDA2E7670F800851FF7 /* SpendingAnalyticsView.swift in Sources */,
 				00D92BBB2E7223C800EDD565 /* SavingsTab.swift in Sources */,
 				00D92BB52E72196C00EDD565 /* MainTabView.swift in Sources */,
 				00CD33412E73993700313283 /* TransactionsSkeletonList.swift in Sources */,
+				005F1FDE2E76712000851FF7 /* TrendsAnalyticsView.swift in Sources */,
 				00D92BC32E7236D100EDD565 /* Overview.swift in Sources */,
 				00DB88AF2E75F72900201B12 /* ReviewIncomeView.swift in Sources */,
 				00CD333D2E73808300313283 /* MerchantLexicon.swift in Sources */,
 				00D92BB12E72084700EDD565 /* RootView.swift in Sources */,
 				003D8B872E74E472001ACCF7 /* RecurringTransactionsService.swift in Sources */,
+				005F1FDC2E76710D00851FF7 /* SavingsAnalyticsView.swift in Sources */,
 				00CD33392E73604000313283 /* ReceiptOCR.swift in Sources */,
 				00DB88AD2E75EFE700201B12 /* MonthlySavings.swift in Sources */,
 				00827B942E72791200B9442A /* ReviewTransactionView.swift in Sources */,

@@ -16,9 +16,7 @@ struct MainTabView: View {
     @State private var isLoadingScan = false
     @State private var scannedImage: UIImage? = nil
 
-    // OCR result used to prefill the review screen
     @State private var ocrResult: OCRResult? = nil
-
     @State private var reloadKey = UUID()
 
     @EnvironmentObject var session: SessionStore
@@ -32,40 +30,47 @@ struct MainTabView: View {
             bg.ignoresSafeArea()
 
             TabView(selection: $selected) {
-                // 👇 Pass reloadKey down so HomeTab reloads when this changes
                 HomeTab(reloadKey: reloadKey)
                     .tag(Tab.home)
                     .tabItem {
-                        Image(systemName: selected == .home ? "house.fill" : "house")
-                        Text("Home")
+                        VStack {
+                            Image(systemName: selected == .home ? "house.fill" : "house")
+                        }
+                        .padding(.top, 15)
                     }
 
                 RecurringTab()
                     .tag(Tab.recurring)
                     .tabItem {
-                        Image(systemName: "repeat.circle")
-                        Text("Recurring")
+                        VStack {
+                            Image(systemName: "repeat.circle")
+                        }
+                        .padding(.top, 15)
                     }
 
                 SavingsTab()
                     .tag(Tab.savings)
                     .tabItem {
-                        Image(systemName: "banknote")
-                        Text("Savings")
+                        VStack {
+                            Image(systemName: "banknote")
+                        }
+                        .padding(.top, 15)
                     }
 
                 AnalyticsTab()
                     .tag(Tab.analytics)
                     .tabItem {
-                        Image(systemName: "chart.bar.xaxis")
-                        Text("Analytics")
+                        VStack {
+                            Image(systemName: "chart.bar.xaxis")
+                        }
+                        .padding(.top, 15)
                     }
             }
             .tint(indigo)
             .toolbarBackground(bg, for: .tabBar)
             .toolbarBackground(.visible, for: .tabBar)
             .toolbarColorScheme(.dark, for: .tabBar)
-            .background(bg.ignoresSafeArea()) 
+            .background(bg.ignoresSafeArea())
 
             VStack {
                 Spacer()
@@ -107,15 +112,12 @@ struct MainTabView: View {
                     showScanner = false
                     guard let img = scannedImage else { return }
 
-                    // Log basic image info
                     print("📸 Scanned image: \(Int(img.size.width))x\(Int(img.size.height)) @\(img.scale)x, orientation=\(img.imageOrientation.rawValue)")
 
                     isLoadingScan = true
                     Task {
                         do {
                             let result = try await ReceiptOCR.shared.extract(from: img)
-
-                            // ==== DEBUG LOGS (OCR FIELDS) ====
                             print("🧾 OCR MERCHANT:", result.merchant ?? "nil")
                             print("🧾 OCR AMOUNT:", result.amount ?? "nil")
                             if let d = result.date {
@@ -132,9 +134,7 @@ struct MainTabView: View {
                             isLoadingScan = false
                             showReview = true
                         } catch {
-                            // Log the failure and still open review for manual edit
                             print("❌ OCR ERROR:", error.localizedDescription)
-
                             ocrResult = nil
                             isLoadingScan = false
                             showReview = true
@@ -158,26 +158,18 @@ struct MainTabView: View {
                 initialCategory: ocrResult?.category,
                 onSave: { merchant, amountString, pickedDate, category, note in
                     Task {
-                        // Parse amount
                         guard let amountString, let parsed = parseAmount(amountString) else {
                             print("❌ Save error: invalid amount '\(amountString ?? "nil")'")
                             return
                         }
-                        // Always store as negative (expense)
                         let amountToStore = -abs(parsed)
 
                         do {
-                            // Get current user id
                             let session = try await SupabaseManager.shared.client.auth.session
                             let userId = session.user.id
-
-                            // Fetch currency from profile (fallback to "USD")
                             let currency = (try? await TransactionsService.shared.fetchProfileCurrency(userId: userId)) ?? "USD"
-
-                            // Use selected date or today
                             let dateToStore = pickedDate ?? Date()
 
-                            // Insert
                             let inserted = try await TransactionsService.shared.insertTransaction(
                                 userId: userId,
                                 amount: amountToStore,
@@ -190,11 +182,9 @@ struct MainTabView: View {
 
                             print("✅ Saved transaction:", inserted.id, inserted.amount, inserted.currency, inserted.date)
 
-                            // 👉 Force Home to refresh & jump to Home tab
                             await MainActor.run {
                                 reloadKey = UUID()
                                 selected = .home
-                                // Clean up & dismiss
                                 showReview = false
                                 scannedImage = nil
                                 ocrResult = nil
@@ -221,9 +211,6 @@ struct MainTabView: View {
         }
     }
 
-    // MARK: - Helpers
-
-    /// Parses strings like "$237.44", "237.44", "(237.44)" → Double
     private func parseAmount(_ raw: String) -> Double? {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         let isParenNegative = s.contains("(") && s.contains(")")

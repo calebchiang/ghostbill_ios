@@ -18,6 +18,7 @@ struct SavingsTab: View {
     // Palette
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
+    private let textMuted = Color(red: 0.80, green: 0.80, blue: 0.85)
 
     // State
     @State private var loading = true
@@ -36,7 +37,14 @@ struct SavingsTab: View {
                 bg.ignoresSafeArea()
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 20) {
+                        // Header
+                        Text("Savings")
+                            .font(.title.bold())
+                            .foregroundColor(textLight)
+                            .padding(.horizontal)
+                            .padding(.top, 8)
+
                         // Monthly card
                         if loading {
                             MonthlySavingsCard(state: .loading)

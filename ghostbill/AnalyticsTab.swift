@@ -7,20 +7,81 @@
 
 import SwiftUI
 
-struct AnalyticsTab: View {
-    private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
-    private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
-    private let textMuted = Color(red: 0.80, green: 0.80, blue: 0.85)
+enum AnalyticsDimension: String, CaseIterable, Identifiable {
+    case spending
+    case savings
+    case trends
 
-    var body: some View {
-        VStack(spacing: 8) {
-            Text("Analytics")
-                .font(.title2)
-                .foregroundColor(textLight)
-            Text("See trends, categories, and insights.")
-                .foregroundColor(textMuted)
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .spending: return "Spending"
+        case .savings:  return "Savings"
+        case .trends:   return "Trends"
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(bg.ignoresSafeArea())
     }
 }
+
+struct AnalyticsTab: View {
+    private let bg        = Color(red: 0.09, green: 0.09, blue: 0.11)
+    private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
+    private let accent    = Color.mint
+
+    @AppStorage("analytics.selectedDimension")
+    private var selectedRaw: String = AnalyticsDimension.spending.rawValue
+
+    private var selectedBinding: Binding<AnalyticsDimension> {
+        Binding(
+            get: { AnalyticsDimension(rawValue: selectedRaw) ?? .spending },
+            set: { selectedRaw = $0.rawValue }
+        )
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                bg.ignoresSafeArea()
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Analytics")
+                                .font(.title.bold())
+                                .foregroundColor(textLight)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+
+                        Picker("", selection: selectedBinding) {
+                            ForEach(AnalyticsDimension.allCases) { dim in
+                                Text(dim.label).tag(dim)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .tint(accent)
+                        .padding(.horizontal, 16)
+
+                        switch selectedBinding.wrappedValue {
+                        case .spending:
+                            SpendingAnalyticsView()
+                                .padding(.horizontal, 16)
+                        case .savings:
+                            SavingsAnalyticsView()
+                                .padding(.horizontal, 16)
+                        case .trends:
+                            TrendsAnalyticsView()
+                                .padding(.horizontal, 16)
+                        }
+
+                        Spacer(minLength: 24)
+                    }
+                    .padding(.top, 12)
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
+        }
+    }
+}
+
