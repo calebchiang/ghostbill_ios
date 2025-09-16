@@ -9,7 +9,6 @@ import SwiftUI
 
 enum AnalyticsDimension: String, CaseIterable, Identifiable {
     case spending
-    case savings
     case trends
 
     var id: String { rawValue }
@@ -17,7 +16,6 @@ enum AnalyticsDimension: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .spending: return "Spending"
-        case .savings:  return "Savings"
         case .trends:   return "Trends"
         }
     }
@@ -65,9 +63,6 @@ struct AnalyticsTab: View {
                         switch selectedBinding.wrappedValue {
                         case .spending:
                             SpendingAnalyticsView()
-                                .padding(.horizontal, 16)
-                        case .savings:
-                            SavingsAnalyticsView()
                                 .padding(.horizontal, 16)
                         case .trends:
                             TrendsAnalyticsView()

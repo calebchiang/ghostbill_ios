@@ -35,6 +35,7 @@ struct MainTabView: View {
                     .tabItem {
                         VStack {
                             Image(systemName: selected == .home ? "house.fill" : "house")
+                            Text("Home")
                         }
                         .padding(.top, 15)
                     }
@@ -44,6 +45,7 @@ struct MainTabView: View {
                     .tabItem {
                         VStack {
                             Image(systemName: "repeat.circle")
+                            Text("Recurring")
                         }
                         .padding(.top, 15)
                     }
@@ -53,6 +55,7 @@ struct MainTabView: View {
                     .tabItem {
                         VStack {
                             Image(systemName: "banknote")
+                            Text("Savings")
                         }
                         .padding(.top, 15)
                     }
@@ -62,6 +65,7 @@ struct MainTabView: View {
                     .tabItem {
                         VStack {
                             Image(systemName: "chart.bar.xaxis")
+                            Text("Analytics")
                         }
                         .padding(.top, 15)
                     }
