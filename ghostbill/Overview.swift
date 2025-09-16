@@ -29,15 +29,6 @@ struct Overview: View {
         let colors: [Color] = slices.map { colorForCategoryString($0.category) }
 
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(monthName)
-                    .font(.title)
-                    .fontWeight(.semibold)
-                    .foregroundColor(textLight)
-                    .padding(.bottom, 16)
-                Spacer()
-            }
-
             ZStack {
                 DonutChart(
                     slices: slices.map { ($0.category, $0.total) },

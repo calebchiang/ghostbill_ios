@@ -148,8 +148,10 @@ struct SavingsHistoryListView: View {
 
             if let val = row.savings, row.hasIncome {
                 HStack(spacing: 4) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .foregroundColor(accent)
+                    // Plain dollar sign, same color and size as the value
+                    Text("$")
+                        .foregroundColor(textLight)
+                        .font(.headline)
                     Text(formatNumber(val))
                         .foregroundColor(textLight)
                         .font(.headline)

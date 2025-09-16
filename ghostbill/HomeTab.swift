@@ -30,6 +30,7 @@ struct HomeTab: View {
     @State private var selectedCategory: ExpenseCategory? = nil
 
     @State private var navPath: [DBTransaction] = []
+    @State private var showingAddSheet = false
 
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
@@ -51,6 +52,24 @@ struct HomeTab: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        // --- Header with title + add icon ---
+                        HStack {
+                            Text(currentMonthTitle())
+                                .font(.title)
+                                .fontWeight(.bold)
+                                .foregroundColor(textLight)
+                            Spacer()
+                            Button {
+                                showingAddSheet = true
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title2)
+                                    .foregroundColor(textLight)
+                            }
+                            .accessibilityLabel("Add transaction")
+                        }
+                        .padding(.horizontal)
+
                         Overview(transactions: transactions)
 
                         HStack {
@@ -114,6 +133,49 @@ struct HomeTab: View {
                 .navigationBarTitleDisplayMode(.inline)
             }
         }
+        .sheet(isPresented: $showingAddSheet) {
+            AddTransactionView(
+                onSave: { merchant, amountString, pickedDate, type, category, notes in
+                    Task {
+                        guard let amountString, let parsed = parseAmount(amountString) else {
+                            print("❌ Save error: invalid amount '\(amountString ?? "nil")'")
+                            return
+                        }
+                        let amountToStore = (type == .income) ? abs(parsed) : -abs(parsed)
+
+                        do {
+                            let session = try await SupabaseManager.shared.client.auth.session
+                            let userId = session.user.id
+
+                            let currency = (try? await TransactionsService.shared.fetchProfileCurrency(userId: userId)) ?? "USD"
+                            let dateToStore = pickedDate ?? Date()
+                            let typeString = (type == .income) ? "income" : "expense"
+
+                            _ = try await TransactionsService.shared.insertTransaction(
+                                userId: userId,
+                                amount: amountToStore,
+                                currency: currency,
+                                date: dateToStore,
+                                merchant: (merchant?.isEmpty == true) ? nil : merchant,
+                                category: category,
+                                note: (notes?.isEmpty == true) ? nil : notes,
+                                type: typeString
+                            )
+
+                            await MainActor.run {
+                                showingAddSheet = false
+                            }
+                            await loadTransactions()
+                        } catch {
+                            print("❌ Insert error:", error.localizedDescription)
+                        }
+                    }
+                },
+                onCancel: {
+                    showingAddSheet = false
+                }
+            )
+        }
         .task(id: reloadKey) {
             await loadTransactions()
         }
@@ -139,6 +201,25 @@ struct HomeTab: View {
             self.transactions = []
         }
         loading = false
+    }
+
+    private func currentMonthTitle() -> String {
+        let df = DateFormatter()
+        df.dateFormat = "LLLL"
+        return df.string(from: Date())
+    }
+
+    // Matches the parser used in MainTabView for Review flow.
+    private func parseAmount(_ raw: String) -> Double? {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let isParenNegative = s.contains("(") && s.contains(")")
+        s = s.replacingOccurrences(of: "$", with: "")
+             .replacingOccurrences(of: ",", with: "")
+             .replacingOccurrences(of: "(", with: "")
+             .replacingOccurrences(of: ")", with: "")
+             .replacingOccurrences(of: " ", with: "")
+        guard let v = Double(s) else { return nil }
+        return isParenNegative ? -v : v
     }
 }
 

@@ -75,7 +75,8 @@ struct TransactionsService {
         date: Date,
         merchant: String?,
         category: ExpenseCategory?,
-        note: String?
+        note: String?,
+        type: String? = nil
     ) async throws -> DBTransaction {
         struct Payload: Encodable {
             let user_id: UUID
@@ -85,7 +86,11 @@ struct TransactionsService {
             let merchant: String?
             let category: String?
             let note: String?
+            let type: String?
         }
+
+        // Capitalize category for DB storage (e.g., "coffee" -> "Coffee")
+        let categoryString = category.map { $0.rawValue.capitalized }
 
         let payload = Payload(
             user_id: userId,
@@ -93,8 +98,9 @@ struct TransactionsService {
             currency: currency,
             date: date,
             merchant: merchant,
-            category: category?.rawValue,
-            note: note
+            category: categoryString,
+            note: note,
+            type: type
         )
 
         let inserted: DBTransaction = try await client
@@ -158,12 +164,13 @@ struct TransactionsService {
             }
         }
 
+        // Capitalize category on update as well
         let patch = Patch(
             amount: amount,
             currency: currency,
             date: date,
             merchant: merchant,
-            category: category?.rawValue,
+            category: category.map { $0.rawValue.capitalized },
             note: note
         )
 
