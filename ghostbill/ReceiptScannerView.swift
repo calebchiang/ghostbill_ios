@@ -12,12 +12,14 @@ struct ReceiptScannerView: UIViewControllerRepresentable {
     var onComplete: (_ images: [UIImage]) -> Void
     var onCancel: () -> Void = {}
     var onError: (_ error: Error) -> Void = { _ in }
+    var onManualAdd: () -> Void = {}
 
     func makeUIViewController(context: Context) -> CameraViewController {
         let vc = CameraViewController()
         vc.onComplete = onComplete
         vc.onCancel = onCancel
         vc.onError = onError
+        vc.onManualAdd = onManualAdd
         return vc
     }
 
@@ -27,6 +29,7 @@ struct ReceiptScannerView: UIViewControllerRepresentable {
         var onComplete: ((_ images: [UIImage]) -> Void)?
         var onCancel: (() -> Void)?
         var onError: ((_ error: Error) -> Void)?
+        var onManualAdd: (() -> Void)?
 
         private let captureSession = AVCaptureSession()
         private let photoOutput = AVCapturePhotoOutput()
@@ -35,6 +38,8 @@ struct ReceiptScannerView: UIViewControllerRepresentable {
 
         private var captureButton: UIButton?
         private var cancelButton: UIButton?
+        private var manualButton: UIButton?
+        private var promptLabel: UILabel?
 
         override func viewDidLoad() {
             super.viewDidLoad()
@@ -55,12 +60,22 @@ struct ReceiptScannerView: UIViewControllerRepresentable {
             view.layer.addSublayer(preview)
             previewLayer = preview
 
-            // Overlay first (below buttons), then buttons on top
             addOverlay()
             addCaptureButton()
             addCancelButton()
+            addManualButton()
+            addPromptLabel()
 
             captureSession.startRunning()
+        }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            if let label = promptLabel, label.alpha == 1.0 {
+                UIView.animate(withDuration: 0.6, delay: 2.0, options: [.curveEaseInOut]) {
+                    label.alpha = 0.0
+                }
+            }
         }
 
         override func viewDidLayoutSubviews() {
@@ -68,11 +83,9 @@ struct ReceiptScannerView: UIViewControllerRepresentable {
             previewLayer?.frame = view.bounds
             layoutButtons()
             updateOverlayPath()
+            layoutPrompt()
         }
 
-        // MARK: - Overlay (visual guide only)
-
-        /// Central window to encourage close framing (tall/skinny receipt).
         private func focusRect(in bounds: CGRect) -> CGRect {
             let xInset = bounds.width * 0.12
             let yInset = bounds.height * 0.08
@@ -83,7 +96,7 @@ struct ReceiptScannerView: UIViewControllerRepresentable {
             let overlay = CAShapeLayer()
             overlay.fillRule = .evenOdd
             overlay.fillColor = UIColor.black.withAlphaComponent(0.55).cgColor
-            overlay.zPosition = 200   // below buttons (we'll put buttons at > 200)
+            overlay.zPosition = 200
             view.layer.addSublayer(overlay)
             overlayLayer = overlay
             updateOverlayPath()
@@ -100,8 +113,6 @@ struct ReceiptScannerView: UIViewControllerRepresentable {
             overlay.frame = bounds
         }
 
-        // MARK: - Buttons
-
         private func addCaptureButton() {
             let buttonSize: CGFloat = 70
             let btn = UIButton(type: .custom)
@@ -111,10 +122,7 @@ struct ReceiptScannerView: UIViewControllerRepresentable {
             btn.layer.borderColor = UIColor.black.cgColor
             btn.layer.borderWidth = 2
             btn.addTarget(self, action: #selector(capturePressed), for: .touchUpInside)
-
-            // Ensure above overlay
             btn.layer.zPosition = 1000
-
             view.addSubview(btn)
             captureButton = btn
         }
@@ -124,13 +132,37 @@ struct ReceiptScannerView: UIViewControllerRepresentable {
             btn.setTitle("Cancel", for: .normal)
             btn.setTitleColor(.white, for: .normal)
             btn.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
-
-            // Keep above overlay as well
             btn.layer.zPosition = 1000
-
             btn.addTarget(self, action: #selector(cancelPressed), for: .touchUpInside)
             view.addSubview(btn)
             cancelButton = btn
+        }
+
+        private func addManualButton() {
+            let btn = UIButton(type: .system)
+            btn.setTitle("Add manually", for: .normal)
+            btn.setTitleColor(.white, for: .normal)
+            btn.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+            btn.layer.zPosition = 1000
+            btn.addTarget(self, action: #selector(manualPressed), for: .touchUpInside)
+            view.addSubview(btn)
+            manualButton = btn
+        }
+
+        private func addPromptLabel() {
+            let label = UILabel()
+            label.text = "Scan Receipt"
+            label.textColor = .white
+            label.font = UIFont.systemFont(ofSize: 20, weight: .semibold)
+            label.textAlignment = .center
+            label.alpha = 1.0
+            label.layer.zPosition = 1000
+            label.layer.shadowColor = UIColor.black.cgColor
+            label.layer.shadowOpacity = 0.6
+            label.layer.shadowRadius = 4
+            label.layer.shadowOffset = CGSize(width: 0, height: 1)
+            view.addSubview(label)
+            promptLabel = label
         }
 
         private func layoutButtons() {
@@ -158,9 +190,30 @@ struct ReceiptScannerView: UIViewControllerRepresentable {
                     height: 40
                 )
             }
+
+            if let manual = manualButton {
+                manual.sizeToFit()
+                let topY = safe.top + 12
+                manual.frame = CGRect(
+                    x: bounds.width - 20 - max(80, manual.bounds.width + 10),
+                    y: topY,
+                    width: max(80, manual.bounds.width + 10),
+                    height: 40
+                )
+            }
         }
 
-        // MARK: - Actions
+        private func layoutPrompt() {
+            guard let label = promptLabel else { return }
+            label.sizeToFit()
+            let width = min(view.bounds.width - 40, label.bounds.width + 20)
+            label.frame = CGRect(
+                x: (view.bounds.width - width) / 2,
+                y: view.bounds.midY - label.bounds.height / 2,
+                width: width,
+                height: max(24, label.bounds.height)
+            )
+        }
 
         @objc private func capturePressed() {
             takePhoto()
@@ -173,12 +226,17 @@ struct ReceiptScannerView: UIViewControllerRepresentable {
             }
         }
 
+        @objc private func manualPressed() {
+            captureSession.stopRunning()
+            dismiss(animated: true) {
+                self.onManualAdd?()
+            }
+        }
+
         private func takePhoto() {
             let settings = AVCapturePhotoSettings()
             photoOutput.capturePhoto(with: settings, delegate: self)
         }
-
-        // MARK: - Photo capture (no cropping)
 
         func photoOutput(_ output: AVCapturePhotoOutput,
                          didFinishProcessingPhoto photo: AVCapturePhoto,
@@ -194,13 +252,11 @@ struct ReceiptScannerView: UIViewControllerRepresentable {
             }
 
             let image = rawImage.fixedOrientation()
-            // No cropping — return the full image
             onComplete?([image])
         }
     }
 }
 
-// MARK: - UIImage orientation helper
 private extension UIImage {
     func fixedOrientation() -> UIImage {
         if imageOrientation == .up { return self }

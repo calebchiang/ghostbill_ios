@@ -151,6 +151,13 @@ struct MainTabView: View {
                 onError: { err in
                     print("❌ Camera error:", err.localizedDescription)
                     showScanner = false
+                },
+                onManualAdd: {
+                    showScanner = false
+                    isLoadingScan = false
+                    scannedImage = nil
+                    ocrResult = nil
+                    showReview = true
                 }
             )
         }
