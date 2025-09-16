@@ -62,10 +62,10 @@ struct AnalyticsTab: View {
 
                         switch selectedBinding.wrappedValue {
                         case .spending:
-                            SpendingAnalyticsView()
+                            TrendsAnalyticsView()
                                 .padding(.horizontal, 16)
                         case .trends:
-                            TrendsAnalyticsView()
+                            SpendingAnalyticsView()
                                 .padding(.horizontal, 16)
                         }
 

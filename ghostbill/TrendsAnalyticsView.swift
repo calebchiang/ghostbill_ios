@@ -24,6 +24,9 @@ struct TrendsAnalyticsView: View {
     // Interaction (line chart selection)
     @State private var selectedSpendingIndex: Int? = nil
 
+    // Navigation
+    @State private var showCategoryBreakdown = false
+
     // Derived
     private var totalTransactions: Int {
         max(1, slices.reduce(0) { $0 + $1.count })
@@ -35,12 +38,23 @@ struct TrendsAnalyticsView: View {
 
                 // ===== Section 1: Top Categories (Donut) =====
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text("Top Categories")
-                            .font(.headline)
-                            .foregroundColor(textLight)
-                        Spacer()
+                    // Make entire header tappable (title + chevron)
+                    Button {
+                        showCategoryBreakdown = true
+                    } label: {
+                        HStack {
+                            Text("Top Categories")
+                                .font(.headline)
+                                .foregroundColor(textLight)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(textMuted)
+                                .font(.subheadline.weight(.semibold))
+                                .accessibilityHidden(true)
+                        }
+                        .contentShape(Rectangle()) // full-width tap target
                     }
+                    .buttonStyle(.plain)
 
                     if let errorText {
                         Text(errorText)
@@ -116,6 +130,14 @@ struct TrendsAnalyticsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 20).fill(cardBG))
                 .overlay(RoundedRectangle(cornerRadius: 20).stroke(stroke, lineWidth: 1))
+                // hidden link to drive navigation (like HistoricalSavingsView)
+                .background(
+                    NavigationLink(
+                        destination: CategoryBreakdownView(),
+                        isActive: $showCategoryBreakdown
+                    ) { EmptyView() }
+                    .hidden()
+                )
 
                 // ===== Section 2: Spending Over Time (Line) =====
                 VStack(alignment: .leading, spacing: 12) {
