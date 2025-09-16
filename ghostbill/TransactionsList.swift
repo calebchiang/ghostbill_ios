@@ -7,7 +7,6 @@
 
 import SwiftUI
 
-// Bridge DB string -> canonical enum used by UI mapping
 extension DBTransaction {
     var categoryEnum: ExpenseCategory {
         guard let raw = category?
@@ -25,7 +24,6 @@ struct TransactionRow: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            // Uses CategoryBadge from CategoryIcons.swift
             CategoryBadge(category: transaction.categoryEnum)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -60,7 +58,7 @@ struct TransactionRow: View {
 
 struct TransactionsList: View {
     let transactions: [DBTransaction]
-    var onSelect: (DBTransaction) -> Void = { _ in } // injected from parent
+    var onSelect: (DBTransaction) -> Void = { _ in }
 
     @State private var page: Int = 1
     private let pageSize = 10
@@ -82,7 +80,6 @@ struct TransactionsList: View {
             } else {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(currentPageItems) { tx in
-                        // Make the entire row tappable
                         Button {
                             onSelect(tx)
                         } label: {
@@ -110,6 +107,9 @@ struct TransactionsList: View {
                 .stroke(Color.white.opacity(0.05), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.35), radius: 20, x: 0, y: 8)
+        .onChange(of: transactions) { _ in
+            page = 1
+        }
     }
 
     private var totalPages: Int {

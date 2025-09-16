@@ -28,8 +28,8 @@ struct TrendsAnalyticsView: View {
     @State private var showCategoryBreakdown = false
 
     // Derived
-    private var totalTransactions: Int {
-        max(1, slices.reduce(0) { $0 + $1.count })
+    private var totalSpend: Double {
+        slices.reduce(0) { $0 + $1.total }
     }
 
     var body: some View {
@@ -38,7 +38,6 @@ struct TrendsAnalyticsView: View {
 
                 // ===== Section 1: Top Categories (Donut) =====
                 VStack(alignment: .leading, spacing: 12) {
-                    // Make entire header tappable (title + chevron)
                     Button {
                         showCategoryBreakdown = true
                     } label: {
@@ -52,7 +51,7 @@ struct TrendsAnalyticsView: View {
                                 .font(.subheadline.weight(.semibold))
                                 .accessibilityHidden(true)
                         }
-                        .contentShape(Rectangle()) // full-width tap target
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
 
@@ -94,12 +93,12 @@ struct TrendsAnalyticsView: View {
                             .frame(height: 240)
                             .overlay(
                                 VStack(spacing: 2) {
-                                    Text("\(totalTransactions)")
+                                    Text("$\(formatNumber(totalSpend))")
                                         .font(.title2.weight(.bold))
                                         .foregroundColor(textLight)
-                                    Text("Transactions")
+                                    Text("Total Spend")
                                         .font(.caption)
-                                        .foregroundColor(textMuted)
+                                       .foregroundColor(textMuted)
                                 }
                             )
 
@@ -130,7 +129,6 @@ struct TrendsAnalyticsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 20).fill(cardBG))
                 .overlay(RoundedRectangle(cornerRadius: 20).stroke(stroke, lineWidth: 1))
-                // hidden link to drive navigation (like HistoricalSavingsView)
                 .background(
                     NavigationLink(
                         destination: CategoryBreakdownView(),
@@ -148,7 +146,6 @@ struct TrendsAnalyticsView: View {
                         Spacer()
                     }
 
-                    // filter out months with zero total so only months with activity are shown
                     let nonZeroPoints = points.filter { $0.total > 0 }
 
                     if isLoading && nonZeroPoints.isEmpty {
@@ -162,7 +159,6 @@ struct TrendsAnalyticsView: View {
                             .foregroundColor(textMuted)
                             .padding(.top, 2)
                     } else {
-                        // Same rendering method as HistoricalSavingsView (Path + GeometryReader + gestures)
                         VStack(alignment: .leading, spacing: 10) {
                             LineChartSpendingMonthly(
                                 points: nonZeroPoints.map { ($0.monthStart, $0.total) },
@@ -171,7 +167,6 @@ struct TrendsAnalyticsView: View {
                             )
                             .frame(height: 220)
 
-                            // X-axis labels (sparse), matching the "method" used in HistoricalSavingsView
                             HStack(spacing: 0) {
                                 ForEach(xLabels(for: nonZeroPoints), id: \.self) { lbl in
                                     Text(lbl)
@@ -181,7 +176,6 @@ struct TrendsAnalyticsView: View {
                                 }
                             }
 
-                            // Average of plotted points (ONLY the visible, non-zero months)
                             let avg: Double = {
                                 let vals = nonZeroPoints.map { $0.total }
                                 guard !vals.isEmpty else { return 0 }
@@ -195,7 +189,7 @@ struct TrendsAnalyticsView: View {
                                     .font(.subheadline)
                                     .foregroundColor(textMuted)
                                 Spacer()
-                                Text(formatNumber(avg))
+                                Text("$\(formatNumber(avg))") 
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundColor(textLight)
                                     .accessibilityLabel("Average monthly spending \(formatNumber(avg))")
@@ -215,19 +209,19 @@ struct TrendsAnalyticsView: View {
 
     // MARK: - Helpers
     private func percentage(for slice: TrendSlice) -> Int {
-        Int(round(Double(slice.count) / Double(totalTransactions) * 100))
+        let total = max(1.0, slices.reduce(0) { $0 + $1.total })
+        return Int(round((slice.total / total) * 100))
     }
 
     private func xLabels(for pts: [SpendingPoint]) -> [String] {
         guard !pts.isEmpty else { return [] }
         let f = DateFormatter()
         f.dateFormat = "MMM"
-        let step = max(1, pts.count / 5) // ~5 labels
+        let step = max(1, pts.count / 5)
         return stride(from: 0, to: pts.count, by: step).map { f.string(from: pts[$0].monthStart) }
     }
 
     private func formatNumber(_ value: Double) -> String {
-        // Match HistoricalSavingsView's formatting: grouped, no decimals, no currency symbol.
         let nf = NumberFormatter()
         nf.numberStyle = .decimal
         nf.maximumFractionDigits = 0
@@ -247,17 +241,19 @@ struct TrendsAnalyticsView: View {
                 return
             }
 
-            async let topTask = CategoryService.shared.getTopExpenseCategoriesByCountAllTime(
+            async let topTask = CategoryService.shared.getTopExpenseCategoriesByAmountAllTime(
                 userId: uid, limit: nil
             )
             async let overTimeTask = CategoryService.shared.getSpendingOverTime(
                 userId: uid, monthsBack: 12
             )
 
-            let (top, overTime) = try await (topTask, overTimeTask)
+            let (topAmounts, overTime) = try await (topTask, overTimeTask)
 
-            let filtered = top.filter { $0.count > 0 }
-            let mapped: [TrendSlice] = filtered.map { TrendSlice(category: $0.category, count: $0.count) }
+            let filtered = topAmounts.filter { $0.total > 0 }
+            let mapped: [TrendSlice] = filtered.map {
+                TrendSlice(category: $0.category, total: $0.total)
+            }
 
             self.slices = mapped
             self.points = overTime
@@ -297,7 +293,7 @@ fileprivate struct DonutChartView: View {
             let center = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
             let outerR = size * 0.48
             let innerR = outerR * innerRatio
-            let total  = max(1, slices.reduce(0) { $0 + $1.count })
+            let total  = max(1.0, slices.reduce(0) { $0 + $1.total })
 
             let arcs = makeArcs(total: total, center: center, innerR: innerR, outerR: outerR)
 
@@ -328,11 +324,11 @@ fileprivate struct DonutChartView: View {
         }
     }
 
-    private func makeArcs(total: Int, center: CGPoint, innerR: CGFloat, outerR: CGFloat) -> [Arc] {
+    private func makeArcs(total: Double, center: CGPoint, innerR: CGFloat, outerR: CGFloat) -> [Arc] {
         var acc = -90.0
         var out: [Arc] = []
         for s in slices {
-            let frac = Double(s.count) / Double(total)
+            let frac = s.total / total
             let span = frac * 360.0
             let a0 = acc + gapDegrees / 2
             let a1 = acc + span - gapDegrees / 2
@@ -374,7 +370,6 @@ fileprivate struct LineChartSpendingMonthly: View {
     let accent: Color
     @Binding var selected: Int?    // selected point index
 
-    // Formatters (month + currency-like number)
     private let monthDF: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "MMM yyyy"
@@ -393,25 +388,21 @@ fileprivate struct LineChartSpendingMonthly: View {
         GeometryReader { geo in
             let size = geo.size
             let values = points.map { $0.1 }
-            // Spending chart always starts at zero
             let maxV = max(values.max() ?? 0, 1)
             let minV = 0.0
             let range = max(maxV - minV, 1)
 
-            // Precompute point positions
             let coords: [CGPoint] = points.enumerated().map { (i, entry) in
                 let x = CGFloat(i) / CGFloat(max(points.count - 1, 1)) * size.width
                 let y = size.height - CGFloat((entry.1 - minV) / range) * size.height
                 return CGPoint(x: x, y: y)
             }
 
-            // Stroke path
             let path = Path { p in
                 guard !coords.isEmpty else { return }
                 p.addLines(coords)
             }
 
-            // Fill path (area)
             let fill = Path { p in
                 guard !coords.isEmpty else { return }
                 p.addLines(coords)
@@ -421,11 +412,9 @@ fileprivate struct LineChartSpendingMonthly: View {
             }
 
             ZStack {
-                // Area & line
                 fill.fill(accent.opacity(0.15))
                 path.stroke(accent, lineWidth: 2)
 
-                // Dots at points
                 ForEach(coords.indices, id: \.self) { i in
                     Circle()
                         .fill(i == selected ? accent : accent.opacity(0.6))
@@ -433,18 +422,15 @@ fileprivate struct LineChartSpendingMonthly: View {
                         .position(coords[i])
                 }
 
-                // Selection marker + tooltip
                 if let sel = selected, coords.indices.contains(sel) {
                     let pt = coords[sel]
 
-                    // Vertical guide
                     Path { p in
                         p.move(to: CGPoint(x: pt.x, y: 0))
                         p.addLine(to: CGPoint(x: pt.x, y: size.height))
                     }
                     .stroke(accent.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
 
-                    // Tooltip
                     VStack(spacing: 4) {
                         Text(monthDF.string(from: points[sel].0))
                             .font(.caption2.weight(.semibold))
@@ -466,7 +452,6 @@ fileprivate struct LineChartSpendingMonthly: View {
                     .foregroundColor(.white)
                 }
             }
-            // Gestures: tap or drag to change selection
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
@@ -474,9 +459,7 @@ fileprivate struct LineChartSpendingMonthly: View {
                         let idx = indexForX(value.location.x, width: size.width, count: points.count)
                         if selected != idx { selected = idx }
                     }
-                    .onEnded { _ in
-                        // keep selection; tap outside to clear (optional)
-                    }
+                    .onEnded { _ in }
             )
             .simultaneousGesture(
                 TapGesture().onEnded {
@@ -487,8 +470,6 @@ fileprivate struct LineChartSpendingMonthly: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(selectedA11yText)
     }
-
-    // MARK: - Helpers
 
     private func indexForX(_ x: CGFloat, width: CGFloat, count: Int) -> Int {
         guard count > 1 else { return 0 }
@@ -515,6 +496,6 @@ fileprivate struct LineChartSpendingMonthly: View {
 fileprivate struct TrendSlice: Identifiable, Hashable {
     let id = UUID()
     let category: ExpenseCategory
-    let count: Int
+    let total: Double
 }
 

@@ -27,12 +27,22 @@ struct HomeTab: View {
     @EnvironmentObject var session: SessionStore
     @State private var transactions: [DBTransaction] = []
     @State private var loading = true
+    @State private var selectedCategory: ExpenseCategory? = nil
 
-    // Navigation path for pushing TransactionView
     @State private var navPath: [DBTransaction] = []
 
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
+
+    private let categories: [ExpenseCategory] = [
+        .groceries, .coffee, .dining, .transport, .fuel, .shopping,
+        .utilities, .housing, .entertainment, .travel, .income, .other
+    ]
+
+    private var visibleTransactions: [DBTransaction] {
+        guard let cat = selectedCategory else { return transactions }
+        return transactions.filter { $0.categoryEnum == cat }
+    }
 
     var body: some View {
         NavigationStack(path: $navPath) {
@@ -49,6 +59,21 @@ struct HomeTab: View {
                                 .fontWeight(.bold)
                                 .foregroundColor(textLight)
                             Spacer()
+                            Menu {
+                                Button("All") { selectedCategory = nil }
+                                Divider()
+                                ForEach(categories, id: \.self) { cat in
+                                    Button(cat.title) { selectedCategory = cat }
+                                }
+                                if selectedCategory != nil {
+                                    Divider()
+                                    Button("Clear filter", role: .destructive) { selectedCategory = nil }
+                                }
+                            } label: {
+                                Image(systemName: "line.3.horizontal.decrease.circle")
+                                    .font(.title3)
+                                    .foregroundColor(textLight)
+                            }
                         }
                         .padding(.horizontal)
 
@@ -57,11 +82,12 @@ struct HomeTab: View {
                                 .padding(.horizontal)
                         } else {
                             TransactionsList(
-                                transactions: transactions,
+                                transactions: visibleTransactions,
                                 onSelect: { tx in
                                     navPath.append(tx)
                                 }
                             )
+                            .id(selectedCategory?.title ?? "all")
                             .padding(.horizontal)
                         }
 
@@ -74,7 +100,6 @@ struct HomeTab: View {
                 TransactionView(
                     transaction: tx,
                     onUpdated: { updated in
-                        // Update the item in place and resort by date desc
                         if let idx = transactions.firstIndex(where: { $0.id == updated.id }) {
                             transactions[idx] = updated
                         } else {
@@ -89,7 +114,6 @@ struct HomeTab: View {
                 .navigationBarTitleDisplayMode(.inline)
             }
         }
-        // Runs on first appear and whenever reloadKey changes
         .task(id: reloadKey) {
             await loadTransactions()
         }
@@ -106,7 +130,7 @@ struct HomeTab: View {
                 .select()
                 .eq("user_id", value: userId)
                 .order("date", ascending: false)
-                .limit(50)
+                .limit(100)
                 .execute()
                 .value
 

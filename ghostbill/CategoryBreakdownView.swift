@@ -16,9 +16,9 @@ struct CategoryBreakdownView: View {
     private let textMuted = Color(red: 0.80, green: 0.80, blue: 0.85)
     private let stroke    = Color.white.opacity(0.06)
 
-    // Data
-    @State private var items: [(category: ExpenseCategory, count: Int)] = []
-    @State private var totalCount: Int = 0
+    // Data (now amount-based)
+    @State private var items: [(category: ExpenseCategory, total: Double)] = []
+    @State private var grandTotal: Double = 0
     @State private var isLoading = false
     @State private var errorText: String?
 
@@ -61,7 +61,7 @@ struct CategoryBreakdownView: View {
                         LazyVStack(spacing: 10) {
                             ForEach(items.indices, id: \.self) { i in
                                 let entry = items[i]
-                                let pct = percentageString(for: entry.count, total: totalCount)
+                                let pct = percentageString(for: entry.total, total: grandTotal)
 
                                 NavigationLink {
                                     ExpandedCategoryView(category: entry.category)
@@ -80,7 +80,7 @@ struct CategoryBreakdownView: View {
                                         Text(pct)
                                             .foregroundColor(textLight)
                                             .font(.subheadline.weight(.semibold))
-                                            .accessibilityLabel("\(pct) of transactions")
+                                            .accessibilityLabel("\(pct) of spend")
                                     }
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 14)
@@ -94,7 +94,6 @@ struct CategoryBreakdownView: View {
                                             )
                                     )
                                 }
-                                // Lighten the card while pressed
                                 .buttonStyle(PressableCardStyle(base: cardBG))
                             }
                         }
@@ -122,29 +121,27 @@ struct CategoryBreakdownView: View {
                 return
             }
 
-            // Fetch all categories by count (same source as the donut)
-            let top = try await CategoryService.shared.getTopExpenseCategoriesByCountAllTime(
+            let topByAmount = try await CategoryService.shared.getTopExpenseCategoriesByAmountAllTime(
                 userId: uid,
                 limit: nil
             )
 
-            let filtered = top.filter { $0.count > 0 }
-            let total = max(1, filtered.reduce(0) { $0 + $1.count })
+            let filtered = topByAmount.filter { $0.total > 0 }
+            let total = max(1.0, filtered.reduce(0.0) { $0 + $1.total })
 
-            // Sort descending by count
-            let sorted: [(ExpenseCategory, Int)] = filtered
-                .sorted(by: { $0.count > $1.count })
-                .map { ($0.category, $0.count) }
+            let sorted: [(ExpenseCategory, Double)] = filtered
+                .sorted(by: { $0.total > $1.total })
+                .map { ($0.category, $0.total) }
 
             await MainActor.run {
                 self.items = sorted
-                self.totalCount = total
+                self.grandTotal = total
                 self.isLoading = false
             }
         } catch {
             await MainActor.run {
                 self.items = []
-                self.totalCount = 0
+                self.grandTotal = 0
                 self.isLoading = false
                 self.errorText = (error as NSError).localizedDescription
             }
@@ -153,9 +150,9 @@ struct CategoryBreakdownView: View {
 
     // MARK: - Helpers
 
-    private func percentageString(for count: Int, total: Int) -> String {
+    private func percentageString(for part: Double, total: Double) -> String {
         guard total > 0 else { return "0%" }
-        let pct = Int(round((Double(count) / Double(total)) * 100.0))
+        let pct = Int(round((part / total) * 100.0))
         return "\(pct)%"
     }
 }
