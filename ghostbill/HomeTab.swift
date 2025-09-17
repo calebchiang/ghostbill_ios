@@ -31,6 +31,8 @@ struct HomeTab: View {
 
     @State private var navPath: [DBTransaction] = []
     @State private var showingAddSheet = false
+    @State private var showingProfile = false
+    @State private var showingFeedback = false   // 👈 new
 
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
@@ -52,32 +54,65 @@ struct HomeTab: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        // --- Header with title + add icon ---
-                        HStack {
-                            Text(currentMonthTitle())
+
+                        // --- Header: Welcome + help & profile icons ---
+                        HStack(spacing: 12) {
+                            Text("Welcome")
                                 .font(.title)
                                 .fontWeight(.bold)
                                 .foregroundColor(textLight)
                             Spacer()
-                            Button {
-                                showingAddSheet = true
-                            } label: {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.title2)
-                                    .foregroundColor(textLight)
+                            HStack(spacing: 12) {
+                                // Help icon -> open FeedbackView
+                                Button {
+                                    showingFeedback = true
+                                } label: {
+                                    Image(systemName: "questionmark.circle")
+                                        .font(.title2)
+                                        .foregroundColor(textLight)
+                                }
+                                .accessibilityLabel("Open feedback")
+
+                                // Profile icon -> open UserProfileView
+                                Button {
+                                    showingProfile = true
+                                } label: {
+                                    Image(systemName: "person.crop.circle")
+                                        .font(.title2)
+                                        .foregroundColor(textLight)
+                                }
+                                .accessibilityLabel("Open profile")
                             }
-                            .accessibilityLabel("Add transaction")
                         }
                         .padding(.horizontal)
 
+                        // --- Overview (no external title above it anymore) ---
                         Overview(transactions: transactions)
+                            .padding(.horizontal)
+                            .padding(.top, 8)
 
+                        // --- Recent Transactions header with Add to the left of Filter ---
                         HStack {
                             Text("Recent Transactions")
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .foregroundColor(textLight)
                             Spacer()
+
+                            // Add button (to the LEFT of the filter icon)
+                            Button {
+                                showingAddSheet = true
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title3)
+                                    .foregroundColor(textLight)
+                            }
+                            .accessibilityLabel("Add transaction")
+
+                            // Spacing between add and filter
+                            Spacer().frame(width: 14)
+
+                            // Filter menu
                             Menu {
                                 Button("All") { selectedCategory = nil }
                                 Divider()
@@ -133,6 +168,16 @@ struct HomeTab: View {
                 .navigationBarTitleDisplayMode(.inline)
             }
         }
+        // Feedback sheet
+        .sheet(isPresented: $showingFeedback) {
+            FeedbackView()
+        }
+        // Profile sheet
+        .sheet(isPresented: $showingProfile) {
+            UserProfileView()
+                .environmentObject(session)
+        }
+        // Add transaction sheet
         .sheet(isPresented: $showingAddSheet) {
             AddTransactionView(
                 onSave: { merchant, amountString, pickedDate, type, category, notes in

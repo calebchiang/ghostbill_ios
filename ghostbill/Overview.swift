@@ -9,7 +9,7 @@ import SwiftUI
 
 struct CategorySlice: Identifiable {
     let id = UUID()
-    let category: String  // raw category label from DB (e.g., "groceries")
+    let category: String
     let total: Double
 }
 
@@ -38,9 +38,12 @@ struct Overview: View {
                 .frame(height: 220)
 
                 VStack(spacing: 4) {
-                    Text("Total Spend")
-                        .font(.footnote)
-                        .foregroundColor(textMuted)
+                    (
+                        Text(monthName).fontWeight(.bold)
+                        + Text(" spend")
+                    )
+                    .font(.footnote)
+                    .foregroundColor(textMuted)
                     Text(formatAmount(total))
                         .font(.title3)
                         .fontWeight(.bold)

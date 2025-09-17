@@ -6,11 +6,14 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct MainTabView: View {
+    // Custom bar with a center Scan control (no label for Scan)
     enum Tab: Hashable { case home, recurring, savings, analytics }
 
     @State private var selected: Tab = .home
+
     @State private var showScanner = false
     @State private var showReview = false
     @State private var isLoadingScan = false
@@ -22,78 +25,45 @@ struct MainTabView: View {
     @EnvironmentObject var session: SessionStore
 
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
+    private let barBG = Color(red: 0.12, green: 0.12, blue: 0.14)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
+    private let textMuted = Color.white.opacity(0.6)
     private let indigo = Color(red: 0.31, green: 0.27, blue: 0.90)
+    private let indigoSelected = Color(red: 0.45, green: 0.42, blue: 0.95)
 
     var body: some View {
         ZStack {
             bg.ignoresSafeArea()
 
-            TabView(selection: $selected) {
-                HomeTab(reloadKey: reloadKey)
-                    .tag(Tab.home)
-                    .tabItem {
-                        VStack {
-                            Image(systemName: selected == .home ? "house.fill" : "house")
-                            Text("Home")
-                        }
-                        .padding(.top, 15)
+            VStack(spacing: 0) {
+                // ==== CONTENT AREA ====
+                Group {
+                    switch selected {
+                    case .home:
+                        HomeTab(reloadKey: reloadKey)
+                    case .recurring:
+                        RecurringTab()
+                    case .savings:
+                        SavingsTab()
+                    case .analytics:
+                        AnalyticsTab()
                     }
-
-                RecurringTab()
-                    .tag(Tab.recurring)
-                    .tabItem {
-                        VStack {
-                            Image(systemName: "repeat.circle")
-                            Text("Recurring")
-                        }
-                        .padding(.top, 15)
-                    }
-
-                SavingsTab()
-                    .tag(Tab.savings)
-                    .tabItem {
-                        VStack {
-                            Image(systemName: "banknote")
-                            Text("Savings")
-                        }
-                        .padding(.top, 15)
-                    }
-
-                AnalyticsTab()
-                    .tag(Tab.analytics)
-                    .tabItem {
-                        VStack {
-                            Image(systemName: "chart.bar.xaxis")
-                            Text("Analytics")
-                        }
-                        .padding(.top, 15)
-                    }
-            }
-            .tint(indigo)
-            .toolbarBackground(bg, for: .tabBar)
-            .toolbarBackground(.visible, for: .tabBar)
-            .toolbarColorScheme(.dark, for: .tabBar)
-            .background(bg.ignoresSafeArea())
-
-            VStack {
-                Spacer()
-                Button {
-                    showScanner = true
-                } label: {
-                    Image(systemName: "doc.viewfinder")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 50, height: 50)
-                        .background(indigo)
-                        .clipShape(Circle())
-                        .shadow(color: indigo.opacity(0.4), radius: 12, x: 0, y: 8)
                 }
-                .padding(.bottom, 30)
-                .accessibilityLabel("Scan receipt")
-            }
-            .allowsHitTesting(true)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
+                // ==== CUSTOM TAB BAR ====
+                CustomTabBar(
+                    selected: $selected,
+                    barBG: barBG,
+                    indigo: indigo,
+                    indigoSelected: indigoSelected,
+                    textLight: textLight,
+                    textMuted: textMuted,
+                    onScanTapped: { showScanner = true }
+                )
+            }
+
+            // Loading overlay during OCR
             if isLoadingScan {
                 ZStack {
                     bg.ignoresSafeArea()
@@ -226,12 +196,105 @@ struct MainTabView: View {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         let isParenNegative = s.contains("(") && s.contains(")")
         s = s.replacingOccurrences(of: "$", with: "")
-             .replacingOccurrences(of: ",", with: "")
-             .replacingOccurrences(of: "(", with: "")
-             .replacingOccurrences(of: ")", with: "")
-             .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: "(", with: "")
+            .replacingOccurrences(of: ")", with: "")
+            .replacingOccurrences(of: " ", with: "")
         guard let v = Double(s) else { return nil }
         return isParenNegative ? -v : v
+    }
+}
+
+// MARK: - Custom Tab Bar
+
+private struct CustomTabBar: View {
+    @Binding var selected: MainTabView.Tab
+
+    let barBG: Color
+    let indigo: Color
+    let indigoSelected: Color
+    let textLight: Color
+    let textMuted: Color
+
+    let onScanTapped: () -> Void
+
+    var body: some View {
+        GeometryReader { geo in
+            let bottomInset = geo.safeAreaInsets.bottom
+
+            VStack(spacing: 0) {
+                // subtle top divider
+                Rectangle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(height: 1)
+
+                HStack {
+                    // Home
+                    tabButton(
+                        system: selected == .home ? "house.fill" : "house",
+                        label: "Home",
+                        isSelected: selected == .home
+                    ) { selected = .home }
+
+                    // Recurring
+                    tabButton(
+                        system: "repeat.circle.fill",
+                        label: "Recurring",
+                        isSelected: selected == .recurring
+                    ) { selected = .recurring }
+
+                    // Scan (center) — circle button with no label
+                    Button(action: onScanTapped) {
+                        Image(systemName: "doc.viewfinder")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 50, height: 50)
+                            .background(indigo)
+                            .clipShape(Circle())
+                            .shadow(color: indigo.opacity(0.4), radius: 12, x: 0, y: 8)
+                            .accessibilityLabel("Scan receipt")
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    // Savings
+                    tabButton(
+                        system: "banknote.fill",
+                        label: "Savings",
+                        isSelected: selected == .savings
+                    ) { selected = .savings }
+
+                    // Analytics
+                    tabButton(
+                        system: "chart.bar.xaxis",
+                        label: "Analytics",
+                        isSelected: selected == .analytics
+                    ) { selected = .analytics }
+                }
+                .padding(.horizontal, 10)
+                .padding(.top, 8)
+                .padding(.bottom, max(bottomInset, 10))
+                .background(barBG.ignoresSafeArea(edges: .bottom))
+            }
+        }
+        .frame(height: 60) // base; actual height grows with safe-area padding
+    }
+
+    // Tab button helper (icon + label)
+    private func tabButton(system: String, label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 2) {
+                Image(systemName: system)
+                    .font(.system(size: 20, weight: isSelected ? .semibold : .regular))
+                    .foregroundColor(isSelected ? indigoSelected : textMuted)
+                Text(label)
+                    .font(.caption2.weight(isSelected ? .semibold : .regular))
+                    .foregroundColor(isSelected ? indigoSelected : textMuted)
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .accessibilityLabel(label)
+        }
+        .buttonStyle(.plain)
     }
 }
 

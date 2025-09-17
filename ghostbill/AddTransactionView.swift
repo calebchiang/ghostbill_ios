@@ -56,7 +56,11 @@ struct AddTransactionView: View {
         _amount   = State(initialValue: initialAmount ?? "")
         _date     = State(initialValue: initialDate ?? Date())
         _type     = State(initialValue: initialType)
-        _category = State(initialValue: initialCategory)
+
+        // If the initial type is income, force initial category to .income
+        let resolvedCategory: ExpenseCategory = (initialType == .income) ? .income : initialCategory
+        _category = State(initialValue: resolvedCategory)
+
         _notes    = State(initialValue: initialNotes ?? "")
     }
 
@@ -68,16 +72,51 @@ struct AddTransactionView: View {
                         .font(.title3).bold()
                         .foregroundColor(textLight)
 
-                    // Merchant
+                    // Transaction Type (tab-style) — ABOVE Merchant
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Merchant").foregroundColor(textMuted).font(.footnote)
-                        TextField("Enter merchant", text: $merchant)
-                            .textInputAutocapitalization(.words)
-                            .disableAutocorrection(true)
-                            .padding(12)
-                            .background(Color.black.opacity(0.25))
-                            .cornerRadius(12)
-                            .foregroundColor(textLight)
+                        Text("Transaction Type")
+                            .foregroundColor(textMuted)
+                            .font(.footnote)
+
+                        HStack(spacing: 8) {
+                            ForEach(TransactionType.allCases, id: \.self) { t in
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        type = t
+                                    }
+                                } label: {
+                                    Text(t.displayName)
+                                        .font(.subheadline.weight(.semibold))
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, 14)
+                                        .frame(maxWidth: .infinity)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 10) // subtle rounding
+                                                .fill(type == t ? indigo : Color.black.opacity(0.25))
+                                        )
+                                        .foregroundColor(type == t ? .white : textLight)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                                        )
+                                }
+                                .accessibilityAddTraits(type == t ? .isSelected : [])
+                            }
+                        }
+                    }
+
+                    // Merchant — hidden for income (we'll default to "Income" on save)
+                    if type == .expense {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Merchant").foregroundColor(textMuted).font(.footnote)
+                            TextField("Enter merchant", text: $merchant)
+                                .textInputAutocapitalization(.words)
+                                .disableAutocorrection(true)
+                                .padding(12)
+                                .background(Color.black.opacity(0.25))
+                                .cornerRadius(12)
+                                .foregroundColor(textLight)
+                        }
                     }
 
                     // Amount
@@ -91,23 +130,7 @@ struct AddTransactionView: View {
                             .foregroundColor(textLight)
                     }
 
-                    // Transaction Type
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Transaction Type").foregroundColor(textMuted).font(.footnote)
-                        Picker("Select type", selection: $type) {
-                            ForEach(TransactionType.allCases, id: \.self) { t in
-                                Text(t.displayName).tag(t)
-                            }
-                        }
-                        .pickerStyle(MenuPickerStyle())
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.black.opacity(0.25))
-                        .cornerRadius(12)
-                        .foregroundColor(textLight)
-                    }
-
-                    // Category — placed below Transaction Type
+                    // Category — auto-select Income for income type
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Category").foregroundColor(textMuted).font(.footnote)
                         Picker("Select category", selection: $category) {
@@ -121,6 +144,8 @@ struct AddTransactionView: View {
                         .background(Color.black.opacity(0.25))
                         .cornerRadius(12)
                         .foregroundColor(textLight)
+                        .disabled(type == .income) // lock when income to avoid accidental change
+                        .opacity(type == .income ? 0.7 : 1.0)
                     }
 
                     // Date
@@ -151,12 +176,19 @@ struct AddTransactionView: View {
                 // Actions
                 VStack(spacing: 10) {
                     Button {
+                        let merchantParam: String? = (type == .income)
+                            ? "Income"
+                            : (merchant.isEmpty ? nil : merchant)
+
+                        // Ensure category is Income when type is income
+                        let finalCategory: ExpenseCategory = (type == .income) ? .income : category
+
                         onSave(
-                            merchant.isEmpty ? nil : merchant,
+                            merchantParam,
                             amount.isEmpty ? nil : amount,
                             date,
                             type,
-                            category,
+                            finalCategory,
                             notes.isEmpty ? nil : notes
                         )
                     } label: {
@@ -181,6 +213,12 @@ struct AddTransactionView: View {
             .padding(16)
             .background(bg.ignoresSafeArea())
             .navigationBarHidden(true)
+            // Reactively force category to .income when switching to income
+            .onChange(of: type) { newValue in
+                if newValue == .income {
+                    category = .income
+                }
+            }
         }
         .preferredColorScheme(.dark)
     }

@@ -104,7 +104,7 @@ struct TransactionView: View {
             isPresented: $showDeleteConfirm,
             titleVisibility: .visible
         ) {
-            Button("Delete Expense", role: .destructive) {
+            Button("Delete Transaction", role: .destructive) {
                 Task { await deleteTapped() }
             }
             Button("Cancel", role: .cancel) {}

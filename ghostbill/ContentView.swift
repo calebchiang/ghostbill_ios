@@ -23,7 +23,7 @@ struct ContentView: View {
                     .foregroundColor(Color(red: 0.96, green: 0.96, blue: 0.96))
                     .padding(.bottom, 28)
 
-                Text("Scan your receipts, build better spending habits.")
+                Text("Track your expenses, build better spending habits.")
                     .font(.body)
                     .fontWeight(.bold)
                     .foregroundColor(Color(red: 0.80, green: 0.80, blue: 0.85))
