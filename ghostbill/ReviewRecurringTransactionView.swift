@@ -14,7 +14,15 @@ struct ReviewRecurringTransactionView: View {
     @State private var category: ExpenseCategory = .other
 
     @State private var frequency: RecurringTransactionsService.RecurrenceFrequency = .monthly
-    @State private var nextDate: Date = Date()   // holds user's pick (keeps time-of-day unless normalized)
+    @State private var nextDate: Date = Date()
+
+    @State private var notifyEnabled: Bool = false
+    @State private var leadDays: Int = 3
+    @State private var notifyTime: Date = {
+        var comps = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        comps.hour = 9; comps.minute = 0
+        return Calendar.current.date(from: comps) ?? Date()
+    }()
 
     @State private var isSaving = false
     @State private var errorText: String?
@@ -22,19 +30,41 @@ struct ReviewRecurringTransactionView: View {
     var onCancel: () -> Void
     var onSaved: () -> Void
 
+    // MARK: - Computed reminder date & validation
+
+    private var computedReminderDate: Date? {
+        guard notifyEnabled else { return nil }
+        let cal = Calendar.current
+        let nextStart = cal.startOfDay(for: nextDate)
+        guard let notifyDay = cal.date(byAdding: .day, value: -leadDays, to: nextStart) else { return nil }
+        let hm = cal.dateComponents([.hour, .minute], from: notifyTime)
+        var comps = cal.dateComponents([.year, .month, .day], from: notifyDay)
+        comps.hour = hm.hour
+        comps.minute = hm.minute
+        return cal.date(from: comps)
+    }
+
+    private var reminderInPast: Bool {
+        guard let fire = computedReminderDate else { return false }
+        return fire <= Date()
+    }
+
     var body: some View {
         NavigationView {
             Form {
+                // MARK: Merchant
                 Section(header: Text("Merchant")) {
                     TextField("e.g. Netflix, Rent", text: $merchantName)
                         .textInputAutocapitalization(.words)
                 }
 
+                // MARK: Amount
                 Section(header: Text("Amount")) {
                     TextField("e.g. 9.99", text: $amountText)
                         .keyboardType(.decimalPad)
                 }
 
+                // MARK: Category
                 Section(header: Text("Category")) {
                     Picker("Select category", selection: $category) {
                         ForEach(ExpenseCategory.allCases, id: \.self) { c in
@@ -44,6 +74,7 @@ struct ReviewRecurringTransactionView: View {
                     .pickerStyle(MenuPickerStyle())
                 }
 
+                // MARK: Schedule
                 Section(header: Text("Schedule")) {
                     Picker("Frequency", selection: $frequency) {
                         Text("Daily").tag(RecurringTransactionsService.RecurrenceFrequency.daily)
@@ -54,6 +85,48 @@ struct ReviewRecurringTransactionView: View {
                     }
 
                     DatePicker("Next Payment Date", selection: $nextDate, displayedComponents: .date)
+                }
+
+                // MARK: Notifications (permission requested on toggle)
+                Section(header: Text("Notifications")) {
+                    Toggle(isOn: $notifyEnabled.animation(.easeInOut(duration: 0.15))) {
+                        Text("Enable reminder before next payment")
+                    }
+                    .onChange(of: notifyEnabled) { isOn in
+                        guard isOn else { return }
+                        Task {
+                            let allowed = await RecurringNotificationsHelper.shared.requestAuthorizationIfNeeded()
+                            if !allowed {
+                                await MainActor.run {
+                                    notifyEnabled = false
+                                    errorText = "Notifications are disabled. Enable them in Settings > Notifications > Ghostbill."
+                                }
+                            }
+                        }
+                    }
+
+                    if notifyEnabled {
+                        Picker("Remind me", selection: $leadDays) {
+                            ForEach(1...14, id: \.self) { d in
+                                Text(d == 1 ? "1 day before" : "\(d) days before").tag(d)
+                            }
+                        }
+
+                        DatePicker("Reminder time", selection: $notifyTime, displayedComponents: .hourAndMinute)
+
+                        // Subtle helper text indicating when it will fire (or why it's invalid)
+                        if let fire = computedReminderDate {
+                            HStack(spacing: 8) {
+                                Image(systemName: reminderInPast ? "exclamationmark.triangle.fill" : "bell")
+                                Text(reminderInPast
+                                     ? "Reminder time is in the past."
+                                     : "Will notify \(formatFriendlyDateTime(fire)).")
+                            }
+                            .font(.footnote)
+                            .foregroundColor(reminderInPast ? .orange : .secondary)
+                            .padding(.top, 2)
+                        }
+                    }
                 }
 
                 if let errorText {
@@ -73,7 +146,7 @@ struct ReviewRecurringTransactionView: View {
                     Button(isSaving ? "Saving…" : "Save") {
                         Task { await save() }
                     }
-                    .disabled(isSaving)
+                    .disabled(isSaving || (notifyEnabled && reminderInPast))
                 }
             }
         }
@@ -89,6 +162,11 @@ struct ReviewRecurringTransactionView: View {
             errorText = "Enter a valid amount (e.g., 9.99)."
             return
         }
+        if notifyEnabled && reminderInPast {
+            // Extra guard in case button enabling state is bypassed
+            errorText = "Reminder time is in the past. Adjust lead days or time."
+            return
+        }
 
         isSaving = true
         defer { isSaving = false }
@@ -99,7 +177,8 @@ struct ReviewRecurringTransactionView: View {
 
             let startOfDay = Calendar.current.startOfDay(for: nextDate)
 
-            _ = try await RecurringTransactionsService.shared.insertRecurringTransaction(
+            // Insert in DB
+            let inserted = try await RecurringTransactionsService.shared.insertRecurringTransaction(
                 userId: userId,
                 merchantName: merchantName,
                 amount: amt,
@@ -107,8 +186,22 @@ struct ReviewRecurringTransactionView: View {
                 frequency: frequency,
                 startDate: startOfDay,
                 nextDate: startOfDay,
-                status: .active
+                status: .active,
+                notificationsEnabled: notifyEnabled,
+                notifyLeadDays: notifyEnabled ? leadDays : nil,
+                notifyTime: notifyEnabled ? notifyTime : nil
             )
+
+            // Schedule the local notification for this item (best-effort)
+            if inserted.notifications_enabled {
+                do {
+                    try await RecurringNotificationsHelper.shared.scheduleNext(for: inserted)
+                } catch {
+                    #if DEBUG
+                    print("Scheduling notification failed: \(error)")
+                    #endif
+                }
+            }
 
             await MainActor.run { onSaved() }
         } catch {
@@ -126,6 +219,12 @@ struct ReviewRecurringTransactionView: View {
              .replacingOccurrences(of: " ", with: "")
         guard let v = Double(s) else { return nil }
         return isParenNegative ? -v : v
+    }
+
+    private func formatFriendlyDateTime(_ date: Date) -> String {
+        let df = DateFormatter()
+        df.dateFormat = "EEE, MMM d 'at' h:mm a"
+        return df.string(from: date)
     }
 }
 

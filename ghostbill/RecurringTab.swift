@@ -23,6 +23,9 @@ struct RecurringTab: View {
     @State private var popupPayments: [RecurringTransactionsService.DBRecurringTransaction] = []
     @State private var popupDate: Date? = nil
 
+    // Selection for detail sheet
+    @State private var selectedRecurring: RecurringTransactionsService.DBRecurringTransaction?
+
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let headerBG = Color(red: 0.16, green: 0.16, blue: 0.18)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
@@ -30,8 +33,8 @@ struct RecurringTab: View {
     private let cardBG = Color(red: 0.14, green: 0.14, blue: 0.17)
     private let indigo = Color(red: 0.31, green: 0.27, blue: 0.90)
 
-    private let sheetBG = Color(red: 0.11, green: 0.11, blue: 0.13)     // dark zinc background
-    private let sheetBorder = Color(red: 0.11, green: 0.11, blue: 0.13)    // light zinc border
+    private let sheetBG = Color(red: 0.11, green: 0.11, blue: 0.13)
+    private let sheetBorder = Color(red: 0.11, green: 0.11, blue: 0.13)
 
     var body: some View {
         GeometryReader { geo in
@@ -51,7 +54,7 @@ struct RecurringTab: View {
                             }) {
                                 Image(systemName: "plus.circle.fill")
                                     .font(.title2)
-                                    .foregroundColor(indigo)
+                                    .foregroundColor(textLight)
                             }
                             .padding(.leading, 8)
                         }
@@ -80,7 +83,6 @@ struct RecurringTab: View {
                         markedDayKeys: markedDayKeys()
                     )
                     .padding(.top, 12)
-                    // iOS 16+ compatible onChange: only provides the new value.
                     .onChange(of: selectedDate) { newValue in
                         guard let date = newValue else { return }
                         let key = dayKey(date)
@@ -98,13 +100,12 @@ struct RecurringTab: View {
                 }
                 .background(bg.ignoresSafeArea())
 
-                // ⬇️ Explicitly anchor the bottom sheet to the bottom of the screen
+                // ⬇️ Bottom sheet
                 bottomSheet(geo: geo)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
 
                 // ====== Center Popup Overlay ======
                 if showDayPopup {
-                    // Dimmed backdrop
                     Color.black.opacity(0.45)
                         .ignoresSafeArea()
                         .onTapGesture {
@@ -114,7 +115,6 @@ struct RecurringTab: View {
                         }
                         .zIndex(100)
 
-                    // Popup card (centered because ZStack is center-aligned)
                     VStack(spacing: 14) {
                         Text(popupTitle())
                             .font(.headline)
@@ -129,17 +129,25 @@ struct RecurringTab: View {
                         } else {
                             VStack(spacing: 10) {
                                 ForEach(popupPayments, id: \.id) { item in
-                                    HStack {
-                                        Text(item.merchant_name)
-                                            .foregroundColor(textLight)
-                                            .font(.subheadline)
-                                            .fontWeight(.semibold)
-                                        Spacer()
-                                        Text(formatAmount(item.amount))
-                                            .foregroundColor(textLight)
-                                            .font(.subheadline)
-                                            .fontWeight(.semibold)
+                                    Button {
+                                        selectedRecurring = item
+                                        withAnimation(.spring(response: 0.22, dampingFraction: 0.95)) {
+                                            showDayPopup = false
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Text(item.merchant_name)
+                                                .foregroundColor(textLight)
+                                                .font(.subheadline)
+                                                .fontWeight(.semibold)
+                                            Spacer()
+                                            Text(formatAmount(item.amount))
+                                                .foregroundColor(textLight)
+                                                .font(.subheadline)
+                                                .fontWeight(.semibold)
+                                        }
                                     }
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
@@ -188,11 +196,28 @@ struct RecurringTab: View {
                 }
             )
         }
+        // Present detail for a tapped upcoming item
+        .sheet(item: $selectedRecurring) { rec in
+            NavigationStack {
+                RecurringPaymentView(
+                    recurring: rec,
+                    onUpdated: { _ in
+                        // Re-fetch to reflect server ordering/changes
+                        Task { await loadUpcoming() }
+                    },
+                    onDeleted: { id in
+                        // Remove locally and close sheet
+                        upcoming.removeAll { $0.id == id }
+                        selectedRecurring = nil
+                    }
+                )
+            }
+        }
     }
 
     @ViewBuilder
     private func bottomSheet(geo: GeometryProxy) -> some View {
-        let peekHeight: CGFloat = 176
+        let peekHeight: CGFloat = 220
         let fullHeight = geo.size.height * 0.7
 
         let bottomGutter = geo.safeAreaInsets.bottom + 90
@@ -245,7 +270,10 @@ struct RecurringTab: View {
                 textMuted: textMuted,
                 indigo: indigo,
                 items: upcoming,
-                showContent: isExpanded
+                showContent: isExpanded,
+                onSelect: { rec in
+                    selectedRecurring = rec
+                }
             )
         }
         .frame(height: fullHeight, alignment: .top)
@@ -317,12 +345,10 @@ struct RecurringTab: View {
         return map
     }
 
-    // For the calendar markers
     private func markedDayKeys() -> Set<String> {
         Set(paymentsByDayKey().keys)
     }
 
-    // Popup helpers
     private func popupTitle() -> String {
         guard let d = popupDate else { return "Payments" }
         let f = DateFormatter()

@@ -231,7 +231,7 @@ private struct CustomTabBar: View {
                 HStack {
                     // Home
                     tabButton(
-                        system: selected == .home ? "house.fill" : "house",
+                        system: selected == .home ? "house.fill" : "house.fill",
                         label: "Home",
                         isSelected: selected == .home
                     ) { selected = .home }

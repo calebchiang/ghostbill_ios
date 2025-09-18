@@ -14,7 +14,10 @@ struct UpcomingPaymentsSheet: View {
     let items: [RecurringTransactionsService.DBRecurringTransaction]
     let showContent: Bool
 
-    private let sheetBG = Color(red: 0.11, green: 0.11, blue: 0.13)     // dark zinc background
+    // NEW: selection handler
+    var onSelect: (RecurringTransactionsService.DBRecurringTransaction) -> Void = { _ in }
+
+    private let sheetBG = Color(red: 0.11, green: 0.11, blue: 0.13)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -44,38 +47,38 @@ struct UpcomingPaymentsSheet: View {
                     // List of upcoming payments
                     List {
                         ForEach(items, id: \.id) { item in
-                            HStack(alignment: .center, spacing: 12) {
-                                // Leading icon
-                                Circle()
-                                    .fill(indigo.opacity(0.20))
-                                    .frame(width: 28, height: 28)
-                                    .overlay(
-                                        Image(systemName: "repeat")
-                                            .foregroundColor(indigo)
-                                    )
+                            Button {
+                                onSelect(item)
+                            } label: {
+                                HStack(alignment: .center, spacing: 12) {
+                                    // Leading icon: category-specific
+                                    CategoryBadge(category: category(for: item))
+                                        .frame(width: 36, height: 36)
 
-                                // Left column: merchant + next payment date
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.merchant_name)
+                                    // Left column: merchant + next payment date
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(item.merchant_name)
+                                            .foregroundColor(textLight)
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+
+                                        Text("Next payment date: \(formatDate(item.next_date))")
+                                            .font(.caption)
+                                            .foregroundColor(textMuted)
+                                    }
+
+                                    Spacer(minLength: 8)
+
+                                    // Right column: amount, trailing aligned
+                                    Text(formatAmount(item.amount))
                                         .foregroundColor(textLight)
                                         .font(.subheadline)
                                         .fontWeight(.semibold)
-
-                                    Text("Next payment date: \(formatDate(item.next_date))")
-                                        .font(.caption)
-                                        .foregroundColor(textMuted)
+                                        .multilineTextAlignment(.trailing)
+                                        .frame(alignment: .trailing)
                                 }
-
-                                Spacer(minLength: 8)
-
-                                // Right column: amount, trailing aligned
-                                Text(formatAmount(item.amount))
-                                    .foregroundColor(textLight)
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .multilineTextAlignment(.trailing)
-                                    .frame(alignment: .trailing)
                             }
+                            .buttonStyle(.plain)
                             .listRowBackground(Color.clear)
                         }
                     }
@@ -90,6 +93,16 @@ struct UpcomingPaymentsSheet: View {
         }
         .padding()
         .background(sheetBG)
+    }
+
+    // MARK: - Helpers
+
+    private func category(for item: RecurringTransactionsService.DBRecurringTransaction) -> ExpenseCategory {
+        if let raw = item.category?.lowercased(),
+           let cat = ExpenseCategory(rawValue: raw) {
+            return cat
+        }
+        return .other
     }
 
     private func formatDate(_ yyyyMMdd: String) -> String {

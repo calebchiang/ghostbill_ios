@@ -10,6 +10,8 @@
 		00262F0A2E768580004EC4C8 /* TransactionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00262F092E768577004EC4C8 /* TransactionView.swift */; };
 		00329D932E7B2DEB002B4018 /* UserProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00329D922E7B2DE6002B4018 /* UserProfileView.swift */; };
 		00329D952E7B3193002B4018 /* FeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00329D942E7B3190002B4018 /* FeedbackView.swift */; };
+		003CBF1C2E7B86EB00324F4E /* RecurringPaymentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003CBF1B2E7B86E700324F4E /* RecurringPaymentView.swift */; };
+		003CBF1E2E7B8D7600324F4E /* RecurringNotificationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003CBF1D2E7B8D7200324F4E /* RecurringNotificationHelper.swift */; };
 		003D8B872E74E472001ACCF7 /* RecurringTransactionsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003D8B862E74E465001ACCF7 /* RecurringTransactionsService.swift */; };
 		003D8B892E74E550001ACCF7 /* ReviewRecurringTransactionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003D8B882E74E549001ACCF7 /* ReviewRecurringTransactionView.swift */; };
 		005F1FDA2E7670F800851FF7 /* SpendingAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005F1FD92E7670F200851FF7 /* SpendingAnalyticsView.swift */; };
@@ -81,6 +83,8 @@
 		00262F092E768577004EC4C8 /* TransactionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionView.swift; sourceTree = "<group>"; };
 		00329D922E7B2DE6002B4018 /* UserProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfileView.swift; sourceTree = "<group>"; };
 		00329D942E7B3190002B4018 /* FeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackView.swift; sourceTree = "<group>"; };
+		003CBF1B2E7B86E700324F4E /* RecurringPaymentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringPaymentView.swift; sourceTree = "<group>"; };
+		003CBF1D2E7B8D7200324F4E /* RecurringNotificationHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringNotificationHelper.swift; sourceTree = "<group>"; };
 		003D8B862E74E465001ACCF7 /* RecurringTransactionsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringTransactionsService.swift; sourceTree = "<group>"; };
 		003D8B882E74E549001ACCF7 /* ReviewRecurringTransactionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewRecurringTransactionView.swift; sourceTree = "<group>"; };
 		005F1FD92E7670F200851FF7 /* SpendingAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpendingAnalyticsView.swift; sourceTree = "<group>"; };
@@ -192,6 +196,8 @@
 		00F5790F2E70AB190041A410 /* ghostbill */ = {
 			isa = PBXGroup;
 			children = (
+				003CBF1D2E7B8D7200324F4E /* RecurringNotificationHelper.swift */,
+				003CBF1B2E7B86E700324F4E /* RecurringPaymentView.swift */,
 				00329D942E7B3190002B4018 /* FeedbackView.swift */,
 				00329D922E7B2DE6002B4018 /* UserProfileView.swift */,
 				007A61272E7A214A00D80822 /* AddTransactionView.swift */,
@@ -413,6 +419,7 @@
 				00329D952E7B3193002B4018 /* FeedbackView.swift in Sources */,
 				0094690A2E73C8C2009F7EC0 /* UpcomingPaymentsSheet.swift in Sources */,
 				005F1FDA2E7670F800851FF7 /* SpendingAnalyticsView.swift in Sources */,
+				003CBF1E2E7B8D7600324F4E /* RecurringNotificationHelper.swift in Sources */,
 				007A61282E7A214D00D80822 /* AddTransactionView.swift in Sources */,
 				00D92BBB2E7223C800EDD565 /* SavingsTab.swift in Sources */,
 				00D92BB52E72196C00EDD565 /* MainTabView.swift in Sources */,
@@ -422,6 +429,7 @@
 				00D92BC32E7236D100EDD565 /* Overview.swift in Sources */,
 				00DB88AF2E75F72900201B12 /* ReviewIncomeView.swift in Sources */,
 				00CD333D2E73808300313283 /* MerchantLexicon.swift in Sources */,
+				003CBF1C2E7B86EB00324F4E /* RecurringPaymentView.swift in Sources */,
 				00D92BB12E72084700EDD565 /* RootView.swift in Sources */,
 				003D8B872E74E472001ACCF7 /* RecurringTransactionsService.swift in Sources */,
 				00B5B56F2E79579D0027EAC7 /* CategoryBreakdownView.swift in Sources */,
