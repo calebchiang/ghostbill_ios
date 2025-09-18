@@ -397,12 +397,23 @@ struct TransactionsService {
 
     // MARK: - Income insert
 
+    /// Insert an income row for a given month.
+    /// - Parameters:
+    ///   - userId: Owner.
+    ///   - amount: Positive number; will be abs()’d for safety.
+    ///   - monthDate: Any date within the target month (used to compute month label and bounds).
+    ///   - timezone: Time zone for month arithmetic and stored date.
+    ///   - note: Optional note; defaults to "Reported income for <Month Year>".
+    ///   - onDate: **Optional explicit day within that month** to store the income on.
+    ///             If `nil`, falls back to the first day of the month (existing behavior).
+    ///             If provided but outside the same month, this throws an error.
     func insertIncomeForMonth(
         userId: UUID,
         amount: Double,
         monthDate: Date = Date(),
         timezone: TimeZone = .current,
-        note: String? = nil
+        note: String? = nil,
+        onDate: Date? = nil
     ) async throws -> DBTransaction {
         let incomeAmount = abs(amount)
         guard incomeAmount > 0 else {
@@ -411,8 +422,30 @@ struct TransactionsService {
 
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = timezone
-        guard let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: monthDate)) else {
-            throw NSError(domain: "TransactionsService", code: -3, userInfo: [NSLocalizedDescriptionKey: "Failed to compute month start."])
+
+        // Compute month start/end (end is start of next month)
+        let (monthStart, monthEnd) = try monthBounds(for: monthDate, timezone: timezone)
+
+        // Validate/choose the date we will insert on
+        let incomeDate: Date = {
+            if let explicit = onDate {
+                // Must fall within [monthStart, monthEnd)
+                if explicit < monthStart || explicit >= monthEnd {
+                    // Different month – throw
+                    return Date.distantPast // placeholder; we throw below
+                }
+                return explicit
+            } else {
+                return monthStart
+            }
+        }()
+
+        if incomeDate == Date.distantPast {
+            throw NSError(
+                domain: "TransactionsService",
+                code: -4,
+                userInfo: [NSLocalizedDescriptionKey: "Selected date must be within the same month."]
+            )
         }
 
         let currency = (try? await fetchProfileCurrency(userId: userId)) ?? "USD"
@@ -437,7 +470,7 @@ struct TransactionsService {
             user_id: userId,
             amount: incomeAmount,
             currency: currency,
-            date: monthStart,
+            date: incomeDate,
             merchant: "Income",
             category: "income",
             note: note ?? "Reported income for \(monthLabel)",

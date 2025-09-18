@@ -20,6 +20,7 @@ enum ExpenseCategory: String, CaseIterable, Codable {
     case housing
     case entertainment
     case travel
+    case personal       
     case income
     case other
 }
@@ -180,6 +181,11 @@ final class Categorizer {
         if skuLike >= 2 {
             scores[.groceries, default: 0] += 3
         }
+
+        // 👇 Personal: membership / self-care style wording
+        if lower.containsAny(of: ["membership","monthly dues","drop-in","salon","barber","spa","massage","yoga","pilates","fitness","class pass","personal training","grooming"]) {
+            scores[.personal, default: 0] += 4
+        }
     }
 
     // MARK: - Tie breakers / precedence
@@ -203,6 +209,11 @@ final class Categorizer {
         // Airlines/Hotels strongly pull to Travel
         if normMerchant.containsAny(of: travelStrongMerchants) {
             scores[.travel, default: 0] += 5
+        }
+
+        // 👇 Personal precedence: if merchant clearly looks like self-care/gym, nudge Personal
+        if normMerchant.containsAny(of: personalStrongMerchants) {
+            scores[.personal, default: 0] += 5
         }
     }
 
@@ -299,6 +310,11 @@ final class Categorizer {
         .travel: Set([
             "delta","united","air canada","westjet","alaska airlines","american airlines","marriott","hilton","hyatt","ihg","hertz","avis","budget","enterprise"
         ]),
+        .personal: Set([ // 👈 NEW: exact/self-care/gym brands normalized
+            "planet fitness","goodlife fitness","anytime fitness","ymca","la fitness","crunch fitness","orangetheory","f45","equinox",
+            "classpass","soulcycle","pure barre","barry s","bliss spa","massage envy","hand and stone","the barber shop","tommy gun s",
+            "great clips","supercuts","sport clips","drybar","sephora salon","regis salon","hair masters","chatters","beard club"
+        ]),
         .other: Set([])
     ]
 
@@ -313,7 +329,10 @@ final class Categorizer {
         .utilities: ["hydro","power","electric","water","gas","internet","mobile","cell","wireless"],
         .housing: ["rent","hoa","strata","property","management","mortgage"],
         .entertainment: ["cinema","theatre","theater","ticket","concert","stream","arcade"],
-        .travel: ["air","hotel","inn","hostel","car rental","rent a car","lodge"]
+        .travel: ["air","hotel","inn","hostel","car rental","rent a car","lodge"],
+        .personal: [ // 👈 NEW: merchant cue tokens
+            "gym","fitness","barber","salon","spa","massage","yoga","pilates","nails","beauty","grooming","hair","wax","laser","clinic"
+        ]
     ]
 
     /// Text tokens by category
@@ -328,12 +347,25 @@ final class Categorizer {
         .housing: ["rent","lease","unit","suite","maintenance","hoa","strata","due date"],
         .entertainment: ["ticket","showtime","subscription","pass","season","seat","row"],
         .travel: ["flight","boarding","gate","pnr","airline","reservation","hotel","room","check-in","baggage","itinerary"],
+        .personal: [ // 👈 NEW: textual cues that often appear on self-care/gym receipts
+            "membership","monthly dues","initiation fee","drop in","drop-in","class","session","personal training",
+            "haircut","trim","fade","beard","shave","colour","color","style","manicure","pedicure","gel","acrylic",
+            "massage","swedish","deep tissue","facial","esthetics","laser","wax","wellness","sauna","steam","towel"
+        ],
         .other: []
     ]
 
     private let travelStrongMerchants: [String] = [
         "air canada","westjet","delta","united","american airlines","alaska airlines",
         "marriott","hilton","hyatt","ihg","hertz","avis","budget","enterprise"
+    ]
+
+    // 👇 NEW: strong personal/self-care/gym merchant list for precedence
+    private let personalStrongMerchants: [String] = [
+        "goodlife fitness","anytime fitness","planet fitness","la fitness","crunch fitness","equinox",
+        "orangetheory","f45","ymca","classpass","soulcycle","pure barre","barry s",
+        "great clips","supercuts","sport clips","drybar","regis salon","hair masters","chatters",
+        "massage envy","hand and stone","bliss spa","beard club"
     ]
 }
 

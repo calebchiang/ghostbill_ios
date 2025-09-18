@@ -94,24 +94,6 @@ struct MonthlySavingsCard: View {
                         Text("No income reported for \(headerMonth).")
                             .font(.subheadline)
                             .foregroundColor(textMuted)
-
-                        if let onAddIncome {
-                            Button(action: onAddIncome) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.system(size: 16, weight: .semibold))
-                                    Text("Add income for \(headerMonth)")
-                                        .font(.subheadline.weight(.semibold))
-                                }
-                                .foregroundColor(textLight)
-                                .padding(.vertical, 10)
-                                .padding(.horizontal, 14)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.green.opacity(0.22))
-                                )
-                            }
-                        }
                     }
                 } else {
                     // ---- UI-only clamp rule ----
@@ -167,6 +149,37 @@ struct MonthlySavingsCard: View {
                     .font(.subheadline)
                 }
             }
+
+            // Always-visible "Add income" button (below calculations/notes)
+            if let onAddIncome {
+                // Title rule:
+                // - If there IS income for the current month: show "Add income"
+                // - Else (no income OR loading): show "Add income for <Month Year>"
+                let addIncomeTitle: String = {
+                    if case .loaded(let d) = state, d.hasIncome {
+                        return "Add income"
+                    } else {
+                        return "Add income for \(headerMonth)"
+                    }
+                }()
+
+                Button(action: onAddIncome) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text(addIncomeTitle)
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundColor(textLight)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.green.opacity(0.22))
+                    )
+                }
+                .padding(.top, 4)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 18)
@@ -200,12 +213,8 @@ struct MonthlySavingsCard: View {
             return "Loading savings card"
         case .loaded(let d):
             let month = monthLabel(from: d.monthStart)
-            if d.hasIncome == false {
-                return "No income reported for \(month)."
-            } else {
-                let saved = max(0, d.savings)
-                return "Total saved this month \(month): \(Int(saved))"
-            }
+            let saved = max(0, d.savings)
+            return "Total saved this month \(month): \(Int(saved))"
         }
     }
 }

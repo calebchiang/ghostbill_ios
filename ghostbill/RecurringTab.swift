@@ -26,6 +26,10 @@ struct RecurringTab: View {
 
     @State private var showRecurringTour = false
 
+    // Simple error surface
+    @State private var showErrorAlert = false
+    @State private var errorMessage: String = ""
+
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let headerBG = Color(red: 0.16, green: 0.16, blue: 0.18)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
@@ -222,6 +226,11 @@ struct RecurringTab: View {
                 )
             }
         }
+        .alert("Couldn't mark as paid", isPresented: $showErrorAlert, actions: {
+            Button("OK", role: .cancel) { }
+        }, message: {
+            Text(errorMessage)
+        })
     }
 
     @ViewBuilder
@@ -282,6 +291,9 @@ struct RecurringTab: View {
                 showContent: isExpanded,
                 onSelect: { rec in
                     selectedRecurring = rec
+                },
+                onMarkPaid: { rec in
+                    Task { await markRecurringPaid(rec) }
                 }
             )
         }
@@ -300,6 +312,65 @@ struct RecurringTab: View {
         .animation(.interactiveSpring(response: 0.22, dampingFraction: 0.9), value: dragOffset)
         .zIndex(1)
     }
+
+    // MARK: - Mark paid orchestration
+
+    private func markRecurringPaid(_ rec: RecurringTransactionsService.DBRecurringTransaction) async {
+        do {
+            // Session + user id
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+
+            // Parse the due date (yyyy-MM-dd) as local midnight
+            guard let dueLocalDate = parseLocalDate(rec.next_date) else {
+                throw NSError(domain: "RecurringTab", code: -101, userInfo: [NSLocalizedDescriptionKey: "Invalid due date."])
+            }
+            let dueAtStartOfDay = Calendar.current.startOfDay(for: dueLocalDate)
+
+            // Resolve currency (fallback USD)
+            let currency = (try? await TransactionsService.shared.fetchProfileCurrency(userId: userId)) ?? "USD"
+
+            // Prepare amount as spend (negative)
+            let spendAmount = -abs(rec.amount)
+
+            // Category mapping
+            let cat = rec.category.flatMap { ExpenseCategory(rawValue: $0.lowercased()) }
+
+            // Insert transaction on the due date
+            _ = try await TransactionsService.shared.insertTransaction(
+                userId: userId,
+                amount: spendAmount,
+                currency: currency,
+                date: dueAtStartOfDay,
+                merchant: rec.merchant_name,
+                category: cat,
+                note: "Marked as paid from recurring"
+            )
+
+            // Compute next occurrence and update the recurring row
+            guard let nextDate = RecurringTransactionsService.shared
+                .nextOccurrenceDate(fromYyyyMmDd: rec.next_date, frequencyString: rec.frequency) else {
+                // If we can't compute, just bail gracefully (no update)
+                throw NSError(domain: "RecurringTab", code: -102, userInfo: [NSLocalizedDescriptionKey: "Could not compute next occurrence date."])
+            }
+
+            _ = try await RecurringTransactionsService.shared.updateRecurringTransaction(
+                userId: userId,
+                id: rec.id,
+                nextDate: nextDate
+            )
+
+            // Refresh UI
+            await loadUpcoming()
+        } catch {
+            await MainActor.run {
+                errorMessage = (error as NSError).localizedDescription
+                showErrorAlert = true
+            }
+        }
+    }
+
+    // MARK: - Utilities
 
     private func rubberBandOverflow(current: CGFloat, lower: CGFloat, upper: CGFloat) -> CGFloat {
         if current < lower {
@@ -397,6 +468,16 @@ struct RecurringTab: View {
         f.maximumFractionDigits = 2
         f.minimumFractionDigits = 2
         return f.string(from: NSNumber(value: amount)) ?? "\(currencySymbol)\(String(format: "%.2f", amount))"
+    }
+
+    /// Parse a "yyyy-MM-dd" in the user's local time zone.
+    private func parseLocalDate(_ yyyyMMdd: String) -> Date? {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .current
+        f.dateFormat = "yyyy-MM-dd"
+        return f.date(from: yyyyMMdd)
     }
 }
 

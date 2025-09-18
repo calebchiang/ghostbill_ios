@@ -577,6 +577,7 @@ private extension ExpenseCategory {
         case .housing:       return "Housing"
         case .entertainment: return "Entertainment"
         case .travel:        return "Travel"
+        case .personal:     return "Personal"
         case .income:        return "Income"
         case .other:         return "Other"
         }

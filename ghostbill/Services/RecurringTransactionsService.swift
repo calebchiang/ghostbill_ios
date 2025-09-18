@@ -109,7 +109,6 @@ struct RecurringTransactionsService {
 
     // MARK: - UPDATE
 
-    /// Partially updates a recurring transaction. Only non-nil parameters are sent to the DB.
     func updateRecurringTransaction(
         userId: UUID,
         id: UUID,
@@ -120,8 +119,6 @@ struct RecurringTransactionsService {
         startDate: Date? = nil,
         nextDate: Date? = nil,
         status: RecurrenceStatus? = nil,
-
-        // 🔔 Notifications — just persisted; no scheduling logic here
         notificationsEnabled: Bool? = nil,
         notifyLeadDays: Int? = nil,
         notifyTime: Date? = nil
@@ -197,11 +194,89 @@ struct RecurringTransactionsService {
             .value
         return rows
     }
+
+    // MARK: - Next-date helpers (NEW)
+
+    func parseFrequency(_ raw: String) -> RecurrenceFrequency {
+        RecurrenceFrequency(rawValue: raw.lowercased()) ?? .monthly
+    }
+
+    func advance(
+        _ date: Date,
+        by freq: RecurrenceFrequency,
+        calendar cal: Calendar = Calendar(identifier: .gregorian)
+    ) -> Date {
+        var calendar = cal
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!  // keep it date-only / stable
+
+        switch freq {
+        case .daily:
+            return calendar.date(byAdding: .day, value: 1, to: date) ?? date
+        case .weekly:
+            return calendar.date(byAdding: .weekOfYear, value: 1, to: date) ?? date
+        case .biweekly:
+            return calendar.date(byAdding: .weekOfYear, value: 2, to: date) ?? date
+        case .monthly:
+            return addMonthsClamped(1, to: date, calendar: calendar)
+        case .yearly:
+            return addYearsClamped(1, to: date, calendar: calendar)
+        }
+    }
+
+    func nextOccurrenceDate(
+        fromYyyyMmDd current: String,
+        frequencyString: String,
+        calendar: Calendar = Calendar(identifier: .gregorian)
+    ) -> Date? {
+        guard let base = DateOnlyFormatter.shared.date(from: current) else { return nil }
+        return advance(base, by: parseFrequency(frequencyString), calendar: calendar)
+    }
+
+    func nextOccurrenceDateString(
+        fromYyyyMmDd current: String,
+        frequencyString: String,
+        calendar: Calendar = Calendar(identifier: .gregorian)
+    ) -> String? {
+        guard let d = nextOccurrenceDate(fromYyyyMmDd: current, frequencyString: frequencyString, calendar: calendar) else { return nil }
+        return DateOnlyFormatter.shared.string(from: d)
+    }
+
+    private func addMonthsClamped(_ months: Int, to date: Date, calendar: Calendar) -> Date {
+        let originalDay = calendar.component(.day, from: date)
+        let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: date)) ?? date
+        guard let advancedMonthStart = calendar.date(byAdding: .month, value: months, to: monthStart) else { return date }
+
+        // 👇 Range fallback must be half-open
+        let range = calendar.range(of: .day, in: .month, for: advancedMonthStart) ?? (1..<29)
+        let clampedDay = min(originalDay, range.count)
+
+        var comps = calendar.dateComponents([.year, .month], from: advancedMonthStart)
+        comps.day = clampedDay
+        return calendar.date(from: comps) ?? advancedMonthStart
+    }
+
+    private func addYearsClamped(_ years: Int, to date: Date, calendar: Calendar) -> Date {
+        let originalDay = calendar.component(.day, from: date)
+        let originalMonth = calendar.component(.month, from: date)
+
+        var comps = calendar.dateComponents([.year, .month], from: date)
+        comps.day = 1
+        let monthStart = calendar.date(from: comps) ?? date
+        guard let advancedYearMonthStart = calendar.date(byAdding: .year, value: years, to: monthStart) else { return date }
+
+        var targetComps = calendar.dateComponents([.year, .month], from: advancedYearMonthStart)
+        targetComps.month = originalMonth
+        // 👇 Range fallback must be half-open
+        let range = calendar.range(of: .day, in: .month, for: calendar.date(from: targetComps) ?? advancedYearMonthStart) ?? (1..<29)
+        let clampedDay = min(originalDay, range.count)
+
+        targetComps.day = clampedDay
+        return calendar.date(from: targetComps) ?? advancedYearMonthStart
+    }
 }
 
 // MARK: - Encoders
 
-/// Formats only year-month-day for Postgres `date`.
 private final class DateOnlyFormatter {
     static let shared: DateFormatter = {
         let f = DateFormatter()
@@ -213,13 +288,12 @@ private final class DateOnlyFormatter {
     }()
 }
 
-/// Formats only hour/minute for Postgres `time`.
 private final class TimeOnlyFormatter {
     static let shared: DateFormatter = {
         let f = DateFormatter()
         f.calendar = Calendar(identifier: .gregorian)
         f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = TimeZone.current   // store local wall-clock time (no tz)
+        f.timeZone = TimeZone.current
         f.dateFormat = "HH:mm"
         return f
     }()
@@ -259,4 +333,3 @@ private struct UpdatePayload: Encodable {
         if let notify_time { try c.encode(notify_time, forKey: .notify_time) }
     }
 }
-

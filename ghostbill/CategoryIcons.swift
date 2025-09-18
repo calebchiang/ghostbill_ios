@@ -21,6 +21,7 @@ extension ExpenseCategory {
         case .housing:        return "house.fill"
         case .entertainment:  return "play.circle.fill"
         case .travel:         return "airplane"
+        case .personal:       return "person.fill"
         case .income:         return "dollarsign.circle.fill"
         case .other:          return "circle.fill"
         }
@@ -39,6 +40,7 @@ extension ExpenseCategory {
         case .housing:        return .purple
         case .entertainment:  return .pink
         case .travel:         return .mint
+        case .personal:       return .red                    
         case .income:         return .cyan   // keep if you like the contrast; swap to .green if preferred
         case .other:          return .gray
         }
