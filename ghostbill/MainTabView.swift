@@ -22,6 +22,9 @@ struct MainTabView: View {
     @State private var ocrResult: OCRResult? = nil
     @State private var reloadKey = UUID()
 
+    // 👇 Hoist the tour state here so the Scan button can interact with it
+    @State private var showHomeTour = false
+
     @EnvironmentObject var session: SessionStore
 
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
@@ -40,7 +43,7 @@ struct MainTabView: View {
                 Group {
                     switch selected {
                     case .home:
-                        HomeTab(reloadKey: reloadKey)
+                        HomeTab(reloadKey: reloadKey)   // no overlay inside HomeTab anymore
                     case .recurring:
                         RecurringTab()
                     case .savings:
@@ -59,8 +62,38 @@ struct MainTabView: View {
                     indigoSelected: indigoSelected,
                     textLight: textLight,
                     textMuted: textMuted,
-                    onScanTapped: { showScanner = true }
+                    onScanTapped: {
+                        // If tour is up on Home, dismiss & persist before opening scanner
+                        if selected == .home && showHomeTour {
+                            Task {
+                                do {
+                                    let session = try await SupabaseManager.shared.client.auth.session
+                                    let userId = session.user.id
+                                    try await ProfilesService.shared.setSeenHomeTour(userId: userId, seen: true)
+                                } catch {
+                                    print("⚠️ Failed to persist seen_home_tour from Scan tap: \(error.localizedDescription)")
+                                }
+                                await MainActor.run { showHomeTour = false }
+                                await MainActor.run { showScanner = true }
+                            }
+                            return
+                        }
+                        showScanner = true
+                    }
                 )
+            }
+
+            // ==== HOME TOUR OVERLAY (hosted here so Scan can close it) ====
+            if selected == .home && showHomeTour {
+                HomeTabTourView {
+                    // onDismiss from the tour component (it already persisted)
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showHomeTour = false
+                    }
+                }
+                .ignoresSafeArea()
+                .transition(.opacity)
+                .zIndex(10_000)
             }
 
             // Loading overlay during OCR
@@ -190,6 +223,25 @@ struct MainTabView: View {
                 }
             )
         }
+        // When switching to Home, check whether to show the tour
+        .task(id: selected) {
+            if selected == .home {
+                await checkHomeTourFlag()
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func checkHomeTourFlag() async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+            let seen = try await ProfilesService.shared.hasSeenHomeTour(userId: userId)
+            await MainActor.run { self.showHomeTour = !seen }
+        } catch {
+            await MainActor.run { self.showHomeTour = false }
+        }
     }
 
     private func parseAmount(_ raw: String) -> Double? {
@@ -205,8 +257,7 @@ struct MainTabView: View {
     }
 }
 
-// MARK: - Custom Tab Bar
-
+// MARK: - Custom Tab Bar (unchanged except onScanTapped handling in parent)
 private struct CustomTabBar: View {
     @Binding var selected: MainTabView.Tab
 
@@ -223,27 +274,23 @@ private struct CustomTabBar: View {
             let bottomInset = geo.safeAreaInsets.bottom
 
             VStack(spacing: 0) {
-                // subtle top divider
                 Rectangle()
                     .fill(Color.white.opacity(0.08))
                     .frame(height: 1)
 
                 HStack {
-                    // Home
                     tabButton(
                         system: selected == .home ? "house.fill" : "house.fill",
                         label: "Home",
                         isSelected: selected == .home
                     ) { selected = .home }
 
-                    // Recurring
                     tabButton(
                         system: "repeat.circle.fill",
                         label: "Recurring",
                         isSelected: selected == .recurring
                     ) { selected = .recurring }
 
-                    // Scan (center) — circle button with no label
                     Button(action: onScanTapped) {
                         Image(systemName: "doc.viewfinder")
                             .font(.system(size: 20, weight: .semibold))
@@ -256,14 +303,12 @@ private struct CustomTabBar: View {
                     }
                     .frame(maxWidth: .infinity)
 
-                    // Savings
                     tabButton(
                         system: "banknote.fill",
                         label: "Savings",
                         isSelected: selected == .savings
                     ) { selected = .savings }
 
-                    // Analytics
                     tabButton(
                         system: "chart.bar.xaxis",
                         label: "Analytics",
@@ -276,10 +321,9 @@ private struct CustomTabBar: View {
                 .background(barBG.ignoresSafeArea(edges: .bottom))
             }
         }
-        .frame(height: 60) // base; actual height grows with safe-area padding
+        .frame(height: 60)
     }
 
-    // Tab button helper (icon + label)
     private func tabButton(system: String, label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 2) {

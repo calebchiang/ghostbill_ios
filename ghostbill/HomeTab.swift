@@ -32,7 +32,7 @@ struct HomeTab: View {
     @State private var navPath: [DBTransaction] = []
     @State private var showingAddSheet = false
     @State private var showingProfile = false
-    @State private var showingFeedback = false   // 👈 new
+    @State private var showingFeedback = false
 
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
@@ -63,20 +63,14 @@ struct HomeTab: View {
                                 .foregroundColor(textLight)
                             Spacer()
                             HStack(spacing: 12) {
-                                // Help icon -> open FeedbackView
-                                Button {
-                                    showingFeedback = true
-                                } label: {
+                                Button { showingFeedback = true } label: {
                                     Image(systemName: "questionmark.circle")
                                         .font(.title2)
                                         .foregroundColor(textLight)
                                 }
                                 .accessibilityLabel("Open feedback")
 
-                                // Profile icon -> open UserProfileView
-                                Button {
-                                    showingProfile = true
-                                } label: {
+                                Button { showingProfile = true } label: {
                                     Image(systemName: "person.crop.circle")
                                         .font(.title2)
                                         .foregroundColor(textLight)
@@ -86,7 +80,7 @@ struct HomeTab: View {
                         }
                         .padding(.horizontal)
 
-                        // --- Overview (no external title above it anymore) ---
+                        // --- Overview ---
                         Overview(transactions: transactions)
                             .padding(.horizontal)
                             .padding(.top, 8)
@@ -99,20 +93,15 @@ struct HomeTab: View {
                                 .foregroundColor(textLight)
                             Spacer()
 
-                            // Add button (to the LEFT of the filter icon)
-                            Button {
-                                showingAddSheet = true
-                            } label: {
+                            Button { showingAddSheet = true } label: {
                                 Image(systemName: "plus.circle.fill")
                                     .font(.title3)
                                     .foregroundColor(textLight)
                             }
                             .accessibilityLabel("Add transaction")
 
-                            // Spacing between add and filter
                             Spacer().frame(width: 14)
 
-                            // Filter menu
                             Menu {
                                 Button("All") { selectedCategory = nil }
                                 Divider()
@@ -137,9 +126,7 @@ struct HomeTab: View {
                         } else {
                             TransactionsList(
                                 transactions: visibleTransactions,
-                                onSelect: { tx in
-                                    navPath.append(tx)
-                                }
+                                onSelect: { tx in navPath.append(tx) }
                             )
                             .id(selectedCategory?.title ?? "all")
                             .padding(.horizontal)
@@ -191,7 +178,6 @@ struct HomeTab: View {
                         do {
                             let session = try await SupabaseManager.shared.client.auth.session
                             let userId = session.user.id
-
                             let currency = (try? await TransactionsService.shared.fetchProfileCurrency(userId: userId)) ?? "USD"
                             let dateToStore = pickedDate ?? Date()
                             let typeString = (type == .income) ? "income" : "expense"
@@ -207,24 +193,22 @@ struct HomeTab: View {
                                 type: typeString
                             )
 
-                            await MainActor.run {
-                                showingAddSheet = false
-                            }
+                            await MainActor.run { showingAddSheet = false }
                             await loadTransactions()
                         } catch {
                             print("❌ Insert error:", error.localizedDescription)
                         }
                     }
                 },
-                onCancel: {
-                    showingAddSheet = false
-                }
+                onCancel: { showingAddSheet = false }
             )
         }
         .task(id: reloadKey) {
             await loadTransactions()
         }
     }
+
+    // MARK: - Data
 
     private func loadTransactions() async {
         loading = true
@@ -248,13 +232,14 @@ struct HomeTab: View {
         loading = false
     }
 
+    // MARK: - Misc
+
     private func currentMonthTitle() -> String {
         let df = DateFormatter()
         df.dateFormat = "LLLL"
         return df.string(from: Date())
     }
 
-    // Matches the parser used in MainTabView for Review flow.
     private func parseAmount(_ raw: String) -> Double? {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         let isParenNegative = s.contains("(") && s.contains(")")

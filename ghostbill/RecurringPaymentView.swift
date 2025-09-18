@@ -24,9 +24,7 @@ struct RecurringPaymentView: View {
     @State private var formNextDate: Date = Date()
     @State private var formCategory: ExpenseCategory = .other
     @State private var formFrequency: RecurringTransactionsService.RecurrenceFrequency = .monthly
-    @State private var formNotes: String = "" // reserved if you add notes later
-
-    // Notifications (frontend + persistence; scheduling via helper)
+    @State private var formNotes: String = "" 
     @State private var formNotifyEnabled: Bool = false
     @State private var formLeadDays: Int = 3
     @State private var formNotifyTime: Date = Self.defaultNineAM()

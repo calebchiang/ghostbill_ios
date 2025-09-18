@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -12,6 +12,7 @@
 		00329D952E7B3193002B4018 /* FeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00329D942E7B3190002B4018 /* FeedbackView.swift */; };
 		003CBF1C2E7B86EB00324F4E /* RecurringPaymentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003CBF1B2E7B86E700324F4E /* RecurringPaymentView.swift */; };
 		003CBF1E2E7B8D7600324F4E /* RecurringNotificationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003CBF1D2E7B8D7200324F4E /* RecurringNotificationHelper.swift */; };
+		003CBF202E7BA62E00324F4E /* ProfilesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003CBF1F2E7BA62700324F4E /* ProfilesService.swift */; };
 		003D8B872E74E472001ACCF7 /* RecurringTransactionsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003D8B862E74E465001ACCF7 /* RecurringTransactionsService.swift */; };
 		003D8B892E74E550001ACCF7 /* ReviewRecurringTransactionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003D8B882E74E549001ACCF7 /* ReviewRecurringTransactionView.swift */; };
 		005F1FDA2E7670F800851FF7 /* SpendingAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005F1FD92E7670F200851FF7 /* SpendingAnalyticsView.swift */; };
@@ -85,6 +86,7 @@
 		00329D942E7B3190002B4018 /* FeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackView.swift; sourceTree = "<group>"; };
 		003CBF1B2E7B86E700324F4E /* RecurringPaymentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringPaymentView.swift; sourceTree = "<group>"; };
 		003CBF1D2E7B8D7200324F4E /* RecurringNotificationHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringNotificationHelper.swift; sourceTree = "<group>"; };
+		003CBF1F2E7BA62700324F4E /* ProfilesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesService.swift; sourceTree = "<group>"; };
 		003D8B862E74E465001ACCF7 /* RecurringTransactionsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringTransactionsService.swift; sourceTree = "<group>"; };
 		003D8B882E74E549001ACCF7 /* ReviewRecurringTransactionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewRecurringTransactionView.swift; sourceTree = "<group>"; };
 		005F1FD92E7670F200851FF7 /* SpendingAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpendingAnalyticsView.swift; sourceTree = "<group>"; };
@@ -133,6 +135,10 @@
 		00F5793B2E70BDC90041A410 /* Config.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Config.plist; sourceTree = "<group>"; };
 		00F5793D2E70C1450041A410 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		003CBF232E7BA7C200324F4E /* TourViews */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = TourViews; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		00F5790A2E70AB190041A410 /* Frameworks */ = {
@@ -196,6 +202,8 @@
 		00F5790F2E70AB190041A410 /* ghostbill */ = {
 			isa = PBXGroup;
 			children = (
+				003CBF232E7BA7C200324F4E /* TourViews */,
+				003CBF1F2E7BA62700324F4E /* ProfilesService.swift */,
 				003CBF1D2E7B8D7200324F4E /* RecurringNotificationHelper.swift */,
 				003CBF1B2E7B86E700324F4E /* RecurringPaymentView.swift */,
 				00329D942E7B3190002B4018 /* FeedbackView.swift */,
@@ -285,6 +293,9 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				003CBF232E7BA7C200324F4E /* TourViews */,
 			);
 			name = ghostbill;
 			productName = ghostbill;
@@ -438,6 +449,7 @@
 				00B5B56D2E7900A40027EAC7 /* CategoryService.swift in Sources */,
 				00827B942E72791200B9442A /* ReviewTransactionView.swift in Sources */,
 				00775F752E764EBB003D3225 /* SavingsHistoryListView.swift in Sources */,
+				003CBF202E7BA62E00324F4E /* ProfilesService.swift in Sources */,
 				00F579132E70AB190041A410 /* ContentView.swift in Sources */,
 				00775F732E76349D003D3225 /* HistoricalSavingsView.swift in Sources */,
 				00D92B9E2E70FD9A00EDD565 /* FloatingGhostView.swift in Sources */,
