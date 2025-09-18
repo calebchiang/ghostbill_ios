@@ -156,7 +156,7 @@ struct CategoryService {
             .from("transactions")
             .select()
             .eq("user_id", value: userId)
-            .ilike("category", value: category.rawValue)
+            .ilike("category", pattern: category.rawValue) // updated signature
             .neq("type", value: "income")
             .lt("amount", value: 0)
 
@@ -183,7 +183,7 @@ struct CategoryService {
             .from("transactions")
             .select("amount,type")
             .eq("user_id", value: userId)
-            .ilike("category", value: category.rawValue)
+            .ilike("category", pattern: category.rawValue) // updated signature
             .neq("type", value: "income")
             .lt("amount", value: 0)
 
@@ -213,7 +213,7 @@ struct CategoryService {
             .from("transactions")
             .select("date,amount,type")
             .eq("user_id", value: userId)
-            .ilike("category", value: category.rawValue)
+            .ilike("category", pattern: category.rawValue) // updated signature
             .neq("type", value: "income")
             .lt("amount", value: 0)
 

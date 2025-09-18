@@ -164,23 +164,16 @@ struct HistoricalSavingsView: View {
 
         // Make the whole card tappable to push the list
         .contentShape(Rectangle())
-        .onTapGesture {
-            showHistoryList = true
+        .onTapGesture { showHistoryList = true }
+
+        // ✅ Modern navigation (requires being inside a NavigationStack higher up)
+        .navigationDestination(isPresented: $showHistoryList) {
+            SavingsHistoryListView(
+                monthsBack: max(monthsBack, 12),
+                reloadKey: reloadKey,
+                onReportIncome: onReportIncome
+            )
         }
-        // Hidden NavigationLink to drive navigation
-        .background(
-            NavigationLink(
-                destination: SavingsHistoryListView(
-                    monthsBack: max(monthsBack, 12),
-                    reloadKey: reloadKey,
-                    onReportIncome: onReportIncome
-                ),
-                isActive: $showHistoryList
-            ) {
-                EmptyView()
-            }
-            .hidden()
-        )
 
         // Load/refresh when the reloadKey changes
         .task(id: reloadKey) {

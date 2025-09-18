@@ -298,7 +298,7 @@ struct UpcomingPaymentsSheet: View {
             let session = try await SupabaseManager.shared.client.auth.session
             let userId = session.user.id
             if let code = try await ProfilesService.shared.getUserCurrency(userId: userId),
-               let sym = try? CurrencySymbols.symbols[code] {
+               let sym = CurrencySymbols.symbols[code] { // <- removed unnecessary try?
                 currencySymbol = sym
             } else {
                 currencySymbol = "$"

@@ -121,14 +121,9 @@ struct TrendsAnalyticsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 20).fill(cardBG))
                 .overlay(RoundedRectangle(cornerRadius: 20).stroke(stroke, lineWidth: 1))
-                .background(
-                    NavigationLink(
-                        destination: CategoryBreakdownView(),
-                        isActive: $showCategoryBreakdown
-                    ) { EmptyView() }
-                    .hidden()
-                )
-
+                .navigationDestination(isPresented: $showCategoryBreakdown) {
+                    CategoryBreakdownView()
+                }
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("Spending Over Time")

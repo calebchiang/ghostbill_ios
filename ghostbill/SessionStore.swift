@@ -37,24 +37,19 @@ final class SessionStore: ObservableObject {
         authTask?.cancel()
         authTask = Task { [weak self] in
             guard let self else { return }
-            do {
-                self.authListener = try await self.client.auth.onAuthStateChange { [weak self] event, session in
-                    guard let self else { return }
-                    Task { @MainActor in
-                        self.isAuthenticated = (session != nil)
-                    }
+            self.authListener = await self.client.auth.onAuthStateChange { [weak self] event, session in
+                Task { @MainActor in
+                    self?.isAuthenticated = (session != nil)
                 }
-            } catch {
-                print("Auth listener error: \(error)")
             }
         }
     }
 
     private func loadInitialSession() async {
-        do {
-            let session = try await client.auth.session
-            isAuthenticated = (session != nil)
-        } catch {
+        // Determine auth state via currentUser; avoid try/catch and nil-compare on non-optional types
+        if client.auth.currentUser != nil {
+            isAuthenticated = true
+        } else {
             isAuthenticated = false
         }
     }
