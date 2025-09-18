@@ -26,6 +26,9 @@ struct RecurringTab: View {
     // Selection for detail sheet
     @State private var selectedRecurring: RecurringTransactionsService.DBRecurringTransaction?
 
+    // 👇 Tour state (loaded from DB flag)
+    @State private var showRecurringTour = false
+
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let headerBG = Color(red: 0.16, green: 0.16, blue: 0.18)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
@@ -182,10 +185,22 @@ struct RecurringTab: View {
                     .zIndex(101)
                     .transition(.scale.combined(with: .opacity))
                 }
+
+                // ====== Recurring Tour Overlay (only if not seen) ======
+                if showRecurringTour {
+                    RecurringTabTourView(onDismiss: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showRecurringTour = false
+                        }
+                    })
+                    .transition(.opacity)
+                    .zIndex(200)
+                }
             }
         }
         .task {
             await loadUpcoming()
+            await checkRecurringTourFlag()
         }
         .sheet(isPresented: $showAddRecurring) {
             ReviewRecurringTransactionView(
@@ -319,6 +334,19 @@ struct RecurringTab: View {
             await MainActor.run {
                 self.upcoming = []
             }
+        }
+    }
+
+    // 👇 Fetch and apply the "seen_recurring_tour" flag
+    private func checkRecurringTourFlag() async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+            let seen = try await ProfilesService.shared.hasSeenRecurringTour(userId: userId)
+            await MainActor.run { self.showRecurringTour = !seen }
+        } catch {
+            // On error, default to hiding the tour to avoid blocking UI
+            await MainActor.run { self.showRecurringTour = false }
         }
     }
 

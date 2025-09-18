@@ -60,5 +60,14 @@ struct ProfilesService {
             .eq("user_id", value: userId)
             .execute()
     }
+
+    func setSeenRecurringTour(userId: UUID, seen: Bool = true) async throws {
+        struct Patch: Encodable { let seen_recurring_tour: Bool }
+        _ = try await client
+            .from("profiles")
+            .update(Patch(seen_recurring_tour: seen))
+            .eq("user_id", value: userId)
+            .execute()
+    }
 }
 
