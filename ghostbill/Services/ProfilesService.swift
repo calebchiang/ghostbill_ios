@@ -12,7 +12,6 @@ struct ProfilesService {
     static let shared = ProfilesService()
     let client = SupabaseManager.shared.client
 
-    // Internal model for just the four flags
     private struct FlagsRow: Decodable, Sendable {
         let seen_home_tour: Bool
         let seen_recurring_tour: Bool
@@ -20,7 +19,10 @@ struct ProfilesService {
         let seen_analytics_tour: Bool
     }
 
-    // Fetch the flags row once
+    private struct CurrencyRow: Decodable, Sendable {
+        let currency: String?
+    }
+
     private func fetchFlags(userId: UUID) async throws -> FlagsRow? {
         let rows: [FlagsRow] = try await client
             .from("profiles")
@@ -31,8 +33,6 @@ struct ProfilesService {
             .value
         return rows.first
     }
-
-    // MARK: - Public checkers (per-tab)
 
     func hasSeenHomeTour(userId: UUID) async throws -> Bool {
         try await fetchFlags(userId: userId)?.seen_home_tour ?? false
@@ -50,8 +50,6 @@ struct ProfilesService {
         try await fetchFlags(userId: userId)?.seen_analytics_tour ?? false
     }
 
-    // MARK: - Setters
-
     func setSeenHomeTour(userId: UUID, seen: Bool = true) async throws {
         struct Patch: Encodable { let seen_home_tour: Bool }
         _ = try await client
@@ -68,6 +66,26 @@ struct ProfilesService {
             .update(Patch(seen_recurring_tour: seen))
             .eq("user_id", value: userId)
             .execute()
+    }
+
+    func setSeenSavingsTour(userId: UUID, seen: Bool = true) async throws {
+        struct Patch: Encodable { let seen_savings_tour: Bool }
+        _ = try await client
+            .from("profiles")
+            .update(Patch(seen_savings_tour: seen))
+            .eq("user_id", value: userId)
+            .execute()
+    }
+
+    func getUserCurrency(userId: UUID) async throws -> String? {
+        let rows: [CurrencyRow] = try await client
+            .from("profiles")
+            .select("currency")
+            .eq("user_id", value: userId)
+            .limit(1)
+            .execute()
+            .value
+        return rows.first?.currency
     }
 }
 

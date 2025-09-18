@@ -1,22 +1,20 @@
 //
-//  HomeTabTourView.swift
+//  SavingsTabTourView.swift
 //  ghostbill
 //
-//  Created by Caleb Chiang on 2025-09-17.
+//  Created by Caleb Chiang on 2025-09-18.
 //
 
 import SwiftUI
 import Supabase
 
-struct HomeTabTourView: View {
-    // Parent can pass this to hide the overlay after we persist the flag.
+struct SavingsTabTourView: View {
     var onDismiss: () -> Void = {}
 
     // Local step state
     @State private var stepIndex: Int = 0
-    @State private var isFinishing = false
+    @State private var isFinishing: Bool = false
 
-    // Simple step model
     private struct Step: Identifiable {
         let id = UUID()
         let title: String
@@ -25,17 +23,16 @@ struct HomeTabTourView: View {
         let secondary: String?
     }
 
-    // Steps for the Home tab tour (keep the wording you provided)
     private let steps: [Step] = [
         Step(
-            title: "Welcome to GhostBill 👋",
-            body: "Let's start tracking your spending.",
-            primary: "Get started!",
+            title: "Monthly savings",
+            body: "See how much you save each month.",
+            primary: "Get started",
             secondary: "Skip"
         ),
         Step(
-            title: "Add an expense",
-            body: "Quickly record an expense by scanning your receipt with the Scanner.",
+            title: "Report your income",
+            body: "Begin by reporting this month’s income. Your savings are calculated as income minus spending.",
             primary: "Close",
             secondary: "Back"
         )
@@ -43,44 +40,42 @@ struct HomeTabTourView: View {
 
     var body: some View {
         ZStack {
-            // Dim background around the card
+            // Dim background — allow taps through on step 2 so the Add Income button is tappable.
             Color.black.opacity(0.5)
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
-                // Allow outside taps to close ONLY on step 1; on step 2 let taps pass through to the tab bar
-                .onTapGesture { if stepIndex == 0 { finishTour() } }
-                .allowsHitTesting(stepIndex == 0)
+                .allowsHitTesting(stepIndex != 1)
 
             GeometryReader { geo in
-                ZStack {
-                    if stepIndex == 0 {
-                        // STEP 1: centered card
+                if stepIndex == 0 {
+                    // STEP 1: centered card
+                    VStack {
+                        Spacer(minLength: 0)
+                        card
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 24)
+                } else {
+                    // STEP 2: arrow above, card lower
+                    ZStack {
+                        // Card lower on screen
                         VStack {
-                            Spacer(minLength: 0)
                             card
-                                .transition(.move(edge: .top).combined(with: .opacity))
+                                .padding(.top, geo.safeAreaInsets.top + 220)
+                                .padding(.horizontal, 24)
+                                .zIndex(0)
                             Spacer(minLength: 0)
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding(.horizontal, 24)
-                    } else {
-                        // STEP 2: lower card + down arrow pointing to Scan icon (center bottom)
-                        VStack(spacing: 10) {
-                            card
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
 
-                            // Down arrow pointing toward the center scan icon
-                            Image(systemName: "arrow.down")
-                                .font(.system(size: 28, weight: .bold))
-                                .foregroundColor(.white)
-                                .shadow(radius: 6)
-                                .allowsHitTesting(false)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 24)
-                        // Place closer to the custom tab bar & safe area (lower on screen)
-                        .padding(.bottom, max(geo.safeAreaInsets.bottom + 100, 100))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                        // Arrow ABOVE the card (about 40pt above)
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(.white)
+                            .shadow(radius: 6)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .padding(.top, geo.safeAreaInsets.top + 180)
+                            .allowsHitTesting(false)
+                            .zIndex(1)
                     }
                 }
             }
@@ -88,11 +83,10 @@ struct HomeTabTourView: View {
         .animation(.easeInOut(duration: 0.25), value: stepIndex)
     }
 
-    // MARK: - Card content (shared between steps)
-
+    // MARK: - Card (matches other tours)
     private var card: some View {
         VStack(spacing: 16) {
-            // Progress dots
+            // Progress dots (2 steps)
             HStack(spacing: 6) {
                 ForEach(steps.indices, id: \.self) { i in
                     Circle()
@@ -114,10 +108,22 @@ struct HomeTabTourView: View {
             }
             .padding(.top, 2)
 
-            Text(steps[stepIndex].title)
-                .font(.title3.weight(.semibold))
-                .foregroundColor(.white)
-                .multilineTextAlignment(.center)
+            // Title (show a savings icon on step 1 only)
+            HStack(spacing: 8) {
+                if stepIndex == 0 {
+                    Image(systemName: "banknote")
+                        .font(.title3.weight(.semibold))
+                        .foregroundColor(.white)
+                        .accessibilityHidden(true)
+                }
+
+                Text(steps[stepIndex].title)
+                    .font(.title3.weight(.semibold))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 6)
 
             Text(steps[stepIndex].body)
                 .font(.callout)
@@ -129,11 +135,11 @@ struct HomeTabTourView: View {
                 if let secondary = steps[stepIndex].secondary {
                     Button {
                         if stepIndex == 0 {
-                            // Skip: finish immediately & persist seen=true
+                            // Skip on step 1 => mark seen + dismiss
                             finishTour()
                         } else {
                             withAnimation(.easeInOut(duration: 0.22)) {
-                                stepIndex = max(stepIndex - 1, 0)
+                                stepIndex = 0
                             }
                         }
                     } label: {
@@ -152,12 +158,12 @@ struct HomeTabTourView: View {
                 }
 
                 Button {
-                    if stepIndex < steps.count - 1 {
+                    if stepIndex == 0 {
                         withAnimation(.easeInOut(duration: 0.22)) {
-                            stepIndex += 1
+                            stepIndex = 1
                         }
                     } else {
-                        // Close on step 2: finish & persist seen=true
+                        // Close on step 2 => mark seen + dismiss
                         finishTour()
                     }
                 } label: {
@@ -166,7 +172,7 @@ struct HomeTabTourView: View {
                         .foregroundColor(.black)
                         .padding(.vertical, 10)
                         .frame(maxWidth: .infinity)
-                        .background(Color.white) // solid, minimal button bg
+                        .background(Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .shadow(radius: 8, x: 0, y: 4)
                 }
@@ -178,18 +184,17 @@ struct HomeTabTourView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
         .background(
-            Color(red: 0.34, green: 0.25, blue: 0.70) // ← solid purple (no gradient)
+            Color(red: 0.34, green: 0.25, blue: 0.70) // same solid purple as other tours
         )
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1) // solid, subtle stroke
+                .stroke(Color.white.opacity(0.12), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.35), radius: 28, x: 0, y: 14)
     }
 
-    // MARK: - Finish + persist
-
+    // MARK: - Persist + dismiss
     private func finishTour() {
         guard !isFinishing else { return }
         isFinishing = true
@@ -198,9 +203,9 @@ struct HomeTabTourView: View {
             do {
                 let session = try await SupabaseManager.shared.client.auth.session
                 let userId = session.user.id
-                try await ProfilesService.shared.setSeenHomeTour(userId: userId, seen: true)
+                try await ProfilesService.shared.setSeenSavingsTour(userId: userId, seen: true)
             } catch {
-                print("⚠️ Failed to persist seen_home_tour: \(error.localizedDescription)")
+                print("⚠️ Failed to persist seen_savings_tour: \(error.localizedDescription)")
             }
             await MainActor.run {
                 onDismiss()

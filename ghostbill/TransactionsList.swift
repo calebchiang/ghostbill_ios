@@ -68,15 +68,47 @@ struct TransactionsList: View {
     var body: some View {
         VStack(spacing: 0) {
             if transactions.isEmpty {
-                VStack(spacing: 8) {
+                VStack(spacing: 18) {
                     Text("No transactions recorded yet")
                         .font(.headline)
-                    Text("Add your first expense to see it here.")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "camera.viewfinder")
+                                .font(.title3)
+                                .foregroundColor(.secondary)
+                                .frame(width: 28)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Scan a receipt")
+                                    .font(.subheadline.weight(.semibold))
+                                Text("Tap the scan icon in the bottom center to record an expense.")
+                                    .font(.footnote)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title3)
+                                .foregroundColor(.secondary)
+                                .frame(width: 28)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Add it manually")
+                                    .font(.subheadline.weight(.semibold))
+                                Text("Press the + icon above to add income or an expense.")
+                                    .font(.footnote)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 2)
+                    .padding(.horizontal, 6)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 24)
+                .padding(.vertical, 28)
             } else {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(currentPageItems) { tx in

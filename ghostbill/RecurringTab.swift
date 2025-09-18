@@ -18,15 +18,12 @@ struct RecurringTab: View {
 
     @State private var upcoming: [RecurringTransactionsService.DBRecurringTransaction] = []
 
-    // Popup state
     @State private var showDayPopup: Bool = false
     @State private var popupPayments: [RecurringTransactionsService.DBRecurringTransaction] = []
     @State private var popupDate: Date? = nil
 
-    // Selection for detail sheet
     @State private var selectedRecurring: RecurringTransactionsService.DBRecurringTransaction?
 
-    // 👇 Tour state (loaded from DB flag)
     @State private var showRecurringTour = false
 
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
@@ -38,6 +35,8 @@ struct RecurringTab: View {
 
     private let sheetBG = Color(red: 0.11, green: 0.11, blue: 0.13)
     private let sheetBorder = Color(red: 0.11, green: 0.11, blue: 0.13)
+
+    @State private var currencySymbol: String = "$"
 
     var body: some View {
         GeometryReader { geo in
@@ -103,11 +102,9 @@ struct RecurringTab: View {
                 }
                 .background(bg.ignoresSafeArea())
 
-                // ⬇️ Bottom sheet
                 bottomSheet(geo: geo)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
 
-                // ====== Center Popup Overlay ======
                 if showDayPopup {
                     Color.black.opacity(0.45)
                         .ignoresSafeArea()
@@ -186,7 +183,6 @@ struct RecurringTab: View {
                     .transition(.scale.combined(with: .opacity))
                 }
 
-                // ====== Recurring Tour Overlay (only if not seen) ======
                 if showRecurringTour {
                     RecurringTabTourView(onDismiss: {
                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -201,6 +197,7 @@ struct RecurringTab: View {
         .task {
             await loadUpcoming()
             await checkRecurringTourFlag()
+            await loadCurrencySymbol()
         }
         .sheet(isPresented: $showAddRecurring) {
             ReviewRecurringTransactionView(
@@ -211,17 +208,14 @@ struct RecurringTab: View {
                 }
             )
         }
-        // Present detail for a tapped upcoming item
         .sheet(item: $selectedRecurring) { rec in
             NavigationStack {
                 RecurringPaymentView(
                     recurring: rec,
                     onUpdated: { _ in
-                        // Re-fetch to reflect server ordering/changes
                         Task { await loadUpcoming() }
                     },
                     onDeleted: { id in
-                        // Remove locally and close sheet
                         upcoming.removeAll { $0.id == id }
                         selectedRecurring = nil
                     }
@@ -337,7 +331,6 @@ struct RecurringTab: View {
         }
     }
 
-    // 👇 Fetch and apply the "seen_recurring_tour" flag
     private func checkRecurringTourFlag() async {
         do {
             let session = try await SupabaseManager.shared.client.auth.session
@@ -345,12 +338,25 @@ struct RecurringTab: View {
             let seen = try await ProfilesService.shared.hasSeenRecurringTour(userId: userId)
             await MainActor.run { self.showRecurringTour = !seen }
         } catch {
-            // On error, default to hiding the tour to avoid blocking UI
             await MainActor.run { self.showRecurringTour = false }
         }
     }
 
-    // MARK: - Day Key Helpers / Mapping
+    private func loadCurrencySymbol() async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+            if let code = try await ProfilesService.shared.getUserCurrency(userId: userId),
+               let sym = CurrencySymbols.symbols[code] {
+                currencySymbol = sym
+            } else {
+                currencySymbol = "$"
+            }
+        } catch {
+            currencySymbol = "$"
+        }
+    }
+
     private func dayKey(_ date: Date) -> String {
         let comps = Calendar.current.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", comps.year ?? 0, comps.month ?? 0, comps.day ?? 0)
@@ -387,7 +393,10 @@ struct RecurringTab: View {
     private func formatAmount(_ amount: Double) -> String {
         let f = NumberFormatter()
         f.numberStyle = .currency
-        return f.string(from: NSNumber(value: amount)) ?? String(format: "$%.2f", amount)
+        f.currencySymbol = currencySymbol
+        f.maximumFractionDigits = 2
+        f.minimumFractionDigits = 2
+        return f.string(from: NSNumber(value: amount)) ?? "\(currencySymbol)\(String(format: "%.2f", amount))"
     }
 }
 

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Supabase
 
 struct UpcomingPaymentsSheet: View {
     let textLight: Color
@@ -13,9 +14,9 @@ struct UpcomingPaymentsSheet: View {
     let indigo: Color
     let items: [RecurringTransactionsService.DBRecurringTransaction]
     let showContent: Bool
-
-    // NEW: selection handler
     var onSelect: (RecurringTransactionsService.DBRecurringTransaction) -> Void = { _ in }
+
+    @State private var currencySymbol: String = "$"
 
     private let sheetBG = Color(red: 0.11, green: 0.11, blue: 0.13)
 
@@ -27,7 +28,6 @@ struct UpcomingPaymentsSheet: View {
 
             if showContent {
                 if items.isEmpty {
-                    // Empty state
                     VStack(spacing: 8) {
                         Image(systemName: "calendar.badge.plus")
                             .font(.title2)
@@ -44,18 +44,15 @@ struct UpcomingPaymentsSheet: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
                 } else {
-                    // List of upcoming payments
                     List {
                         ForEach(items, id: \.id) { item in
                             Button {
                                 onSelect(item)
                             } label: {
                                 HStack(alignment: .center, spacing: 12) {
-                                    // Leading icon: category-specific
                                     CategoryBadge(category: category(for: item))
                                         .frame(width: 36, height: 36)
 
-                                    // Left column: merchant + next payment date
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(item.merchant_name)
                                             .foregroundColor(textLight)
@@ -69,7 +66,6 @@ struct UpcomingPaymentsSheet: View {
 
                                     Spacer(minLength: 8)
 
-                                    // Right column: amount, trailing aligned
                                     Text(formatAmount(item.amount))
                                         .foregroundColor(textLight)
                                         .font(.subheadline)
@@ -93,9 +89,10 @@ struct UpcomingPaymentsSheet: View {
         }
         .padding()
         .background(sheetBG)
+        .task {
+            await loadCurrencySymbol()
+        }
     }
-
-    // MARK: - Helpers
 
     private func category(for item: RecurringTransactionsService.DBRecurringTransaction) -> ExpenseCategory {
         if let raw = item.category?.lowercased(),
@@ -125,9 +122,21 @@ struct UpcomingPaymentsSheet: View {
     }
 
     private func formatAmount(_ amount: Double) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        return f.string(from: NSNumber(value: amount)) ?? String(format: "$%.2f", amount)
+        "\(currencySymbol)\(String(format: "%.2f", amount))"
+    }
+
+    private func loadCurrencySymbol() async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+            if let code = try await ProfilesService.shared.getUserCurrency(userId: userId),
+               let sym = CurrencySymbols.symbols[code] {
+                currencySymbol = sym
+            } else {
+                currencySymbol = "$"
+            }
+        } catch {
+            currencySymbol = "$"
+        }
     }
 }
-

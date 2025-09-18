@@ -11,18 +11,17 @@ import Supabase
 struct ExpandedCategoryView: View {
     let category: ExpenseCategory
 
-    // Palette
     private let bg        = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let cardBG    = Color(red: 0.14, green: 0.14, blue: 0.17)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
     private let textMuted = Color(red: 0.80, green: 0.80, blue: 0.85)
     private let stroke    = Color.white.opacity(0.06)
 
-    // Data
     @State private var isLoading = false
     @State private var errorText: String?
     @State private var totalAllTime: Double = 0
     @State private var currencyCode: String = "USD"
+    @State private var currencySymbol: String = "$"
 
     var body: some View {
         ZStack {
@@ -31,7 +30,6 @@ struct ExpandedCategoryView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
 
-                    // Header card
                     VStack(alignment: .leading, spacing: 12) {
                         HStack(spacing: 12) {
                             CategoryBadge(category: category)
@@ -56,10 +54,10 @@ struct ExpandedCategoryView: View {
                                 .foregroundColor(.red)
                                 .font(.footnote)
                         } else {
-                            Text(formatAmount(totalAllTime, code: currencyCode))
+                            Text(formatAmount(totalAllTime, symbol: currencySymbol))
                                 .font(.system(size: 28, weight: .bold))
                                 .foregroundColor(.white)
-                                .accessibilityLabel("All time \(category.title) spending \(formatAmount(totalAllTime, code: currencyCode))")
+                                .accessibilityLabel("All time \(category.title) spending \(formatAmount(totalAllTime, symbol: currencySymbol))")
                         }
                     }
                     .padding(16)
@@ -69,9 +67,6 @@ struct ExpandedCategoryView: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 20).stroke(stroke, lineWidth: 1)
                     )
-
-                    // Placeholder for future: filters + transaction list
-                    // (For now, spec asks only for all-time total.)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
@@ -82,21 +77,16 @@ struct ExpandedCategoryView: View {
         .task { await loadAllTime() }
     }
 
-    // MARK: - Data
-
     private func loadAllTime() async {
         isLoading = true
         errorText = nil
 
         do {
-            // Get user id
             let session = try await SupabaseManager.shared.client.auth.session
             let userId = session.user.id
 
-            // Currency (fallback to USD)
             let profileCurrency = try await TransactionsService.shared.fetchProfileCurrency(userId: userId) ?? "USD"
 
-            // All-time spend for this category
             let total = try await CategoryService.shared.sumSpendForCategory(
                 userId: userId,
                 category: category,
@@ -104,8 +94,11 @@ struct ExpandedCategoryView: View {
                 end: nil
             )
 
+            let sym = CurrencySymbols.symbols[profileCurrency] ?? "$"
+
             await MainActor.run {
                 self.currencyCode = profileCurrency
+                self.currencySymbol = sym
                 self.totalAllTime = total
                 self.isLoading = false
             }
@@ -117,16 +110,13 @@ struct ExpandedCategoryView: View {
         }
     }
 
-    // MARK: - Formatting
-
-    private func formatAmount(_ value: Double, code: String) -> String {
+    private func formatAmount(_ value: Double, symbol: String) -> String {
         let nf = NumberFormatter()
         nf.numberStyle = .currency
-        nf.currencyCode = code
-        // Keep the same UX you used elsewhere (US-style $ symbol)
-        nf.currencySymbol = "$"
+        nf.currencySymbol = symbol
         nf.maximumFractionDigits = 2
         nf.minimumFractionDigits = 2
-        return nf.string(from: NSNumber(value: value)) ?? "$\(String(format: "%.2f", value))"
+        return nf.string(from: NSNumber(value: value)) ?? "\(symbol)\(String(format: "%.2f", value))"
     }
 }
+

@@ -9,32 +9,27 @@ import SwiftUI
 import Supabase
 
 struct RecurringPaymentView: View {
-    // Input
     let recurring: RecurringTransactionsService.DBRecurringTransaction
     var onUpdated: (RecurringTransactionsService.DBRecurringTransaction) -> Void
     var onDeleted: (UUID) -> Void
 
-    // Local copy we can update after edits
     @State private var item: RecurringTransactionsService.DBRecurringTransaction
 
-    // Edit state
     @State private var isEditing = false
     @State private var formMerchant: String = ""
     @State private var formAmount: String = ""
     @State private var formNextDate: Date = Date()
     @State private var formCategory: ExpenseCategory = .other
     @State private var formFrequency: RecurringTransactionsService.RecurrenceFrequency = .monthly
-    @State private var formNotes: String = "" 
+    @State private var formNotes: String = ""
     @State private var formNotifyEnabled: Bool = false
     @State private var formLeadDays: Int = 3
     @State private var formNotifyTime: Date = Self.defaultNineAM()
 
-    // UI state
     @State private var isSaving = false
     @State private var errorText: String?
     @State private var showDeleteConfirm = false
 
-    // Palette
     private let bg        = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let cardBG    = Color(red: 0.14, green: 0.14, blue: 0.17)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
@@ -44,7 +39,7 @@ struct RecurringPaymentView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    // MARK: - Computed reminder date & validation (same style as Review view)
+    @State private var currencySymbol: String = "$"
 
     private var computedReminderDate: Date? {
         guard formNotifyEnabled else { return nil }
@@ -132,9 +127,10 @@ struct RecurringPaymentView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+        .task {
+            await loadCurrencySymbol()
+        }
     }
-
-    // MARK: - Cards (Read Mode)
 
     private var headerCard: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -204,8 +200,6 @@ struct RecurringPaymentView: View {
         .overlay(RoundedRectangle(cornerRadius: 20).stroke(stroke, lineWidth: 1))
     }
 
-    // MARK: - Edit UI
-
     private var editCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -237,7 +231,7 @@ struct RecurringPaymentView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Amount (numbers only)").foregroundColor(textMuted).font(.footnote)
                 HStack(spacing: 8) {
-                    Text("$").foregroundColor(textMuted)
+                    Text(currencySymbol).foregroundColor(textMuted)
                     TextField("0.00", text: $formAmount)
                         .keyboardType(.decimalPad)
                         .foregroundColor(textLight)
@@ -289,7 +283,6 @@ struct RecurringPaymentView: View {
                     .colorScheme(.dark)
             }
 
-            // Notifications (persisted; scheduling handled after update)
             VStack(alignment: .leading, spacing: 8) {
                 Text("Notifications").foregroundColor(textMuted).font(.footnote)
                 Toggle(isOn: $formNotifyEnabled.animation(.easeInOut(duration: 0.15))) {
@@ -321,7 +314,6 @@ struct RecurringPaymentView: View {
                     DatePicker("Reminder time", selection: $formNotifyTime, displayedComponents: .hourAndMinute)
                         .foregroundColor(textLight)
 
-                    // Subtle helper text (same style as Review screen)
                     if let fire = computedReminderDate {
                         HStack(spacing: 8) {
                             Image(systemName: reminderInPast ? "exclamationmark.triangle.fill" : "bell")
@@ -339,7 +331,6 @@ struct RecurringPaymentView: View {
             .background(Color.black.opacity(0.25))
             .cornerRadius(12)
 
-            // Actions
             VStack(spacing: 10) {
                 Button {
                     Task { await updateTapped() }
@@ -376,8 +367,6 @@ struct RecurringPaymentView: View {
         .overlay(RoundedRectangle(cornerRadius: 20).stroke(stroke, lineWidth: 1))
     }
 
-    // MARK: - Actions
-
     private func updateTapped() async {
         errorText = nil
 
@@ -405,7 +394,6 @@ struct RecurringPaymentView: View {
         do {
             let startOfDayNext = Calendar.current.startOfDay(for: formNextDate)
 
-            // 1) Persist changes (including notification prefs)
             let updated = try await RecurringTransactionsService.shared.updateRecurringTransaction(
                 userId: userId,
                 id: item.id,
@@ -414,13 +402,11 @@ struct RecurringPaymentView: View {
                 category: formCategory.rawValue,
                 frequency: formFrequency,
                 nextDate: startOfDayNext,
-                // Status unchanged
                 notificationsEnabled: formNotifyEnabled,
                 notifyLeadDays: formNotifyEnabled ? formLeadDays : nil,
                 notifyTime: formNotifyEnabled ? formNotifyTime : nil
             )
 
-            // 2) Best-effort scheduling/cancel
             do {
                 if updated.notifications_enabled {
                     _ = try await RecurringNotificationsHelper.shared.rescheduleNext(for: updated)
@@ -428,15 +414,11 @@ struct RecurringPaymentView: View {
                     _ = await RecurringNotificationsHelper.shared.cancel(for: updated)
                 }
             } catch {
-                #if DEBUG
-                print("Notification scheduling failed: \(error)")
-                #endif
                 await MainActor.run {
-                    self.errorText = "Saved, but couldn’t schedule the reminder (it may be in the past or notifications are off)."
+                    self.errorText = "Saved, but couldn’t schedule the reminder."
                 }
             }
 
-            // 3) Update local state & dismiss edit
             item = updated
             onUpdated(updated)
             withAnimation(.easeInOut) { isEditing = false }
@@ -457,10 +439,8 @@ struct RecurringPaymentView: View {
         defer { isSaving = false }
 
         do {
-            // Best-effort cancel any pending notification first
             _ = await RecurringNotificationsHelper.shared.cancel(for: item)
 
-            // Delete from DB
             try await RecurringTransactionsService.shared.deleteRecurringTransaction(
                 userId: userId,
                 id: item.id
@@ -471,8 +451,6 @@ struct RecurringPaymentView: View {
             errorText = error.localizedDescription
         }
     }
-
-    // MARK: - Helpers & formatting
 
     private func row(label: String, value: String, valueColor: Color? = nil) -> some View {
         HStack(alignment: .firstTextBaseline) {
@@ -498,7 +476,6 @@ struct RecurringPaymentView: View {
         formCategory  = r.categoryEnum
         formFrequency = RecurringTransactionsService.RecurrenceFrequency(rawValue: r.frequency) ?? .monthly
         formNextDate  = parseDate(r.next_date)
-
         formNotifyEnabled = r.notifications_enabled
         formLeadDays      = r.notify_lead_days ?? 3
         formNotifyTime    = dateFromTimeString(r.notify_time) ?? Self.defaultNineAM()
@@ -506,7 +483,8 @@ struct RecurringPaymentView: View {
 
     private func parseAmount(_ raw: String) -> Double? {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        s = s.replacingOccurrences(of: "$", with: "")
+        s = s.replacingOccurrences(of: currencySymbol, with: "")
+             .replacingOccurrences(of: "$", with: "")
              .replacingOccurrences(of: ",", with: "")
              .replacingOccurrences(of: " ", with: "")
         return Double(s)
@@ -528,9 +506,7 @@ struct RecurringPaymentView: View {
     }
 
     private func formatAmountDisplay(_ amount: Double) -> String {
-        let nf = NumberFormatter()
-        nf.numberStyle = .currency
-        return nf.string(from: NSNumber(value: amount)) ?? String(format: "$%.2f", amount)
+        "\(currencySymbol)\(String(format: "%.2f", amount))"
     }
 
     private func formatFriendlyDateTime(_ date: Date) -> String {
@@ -540,7 +516,6 @@ struct RecurringPaymentView: View {
     }
 
     private func timePrefix(_ hhmmss: String) -> String {
-        // Show HH:MM from "HH:MM" or "HH:MM:SS"
         let comps = hhmmss.split(separator: ":")
         guard comps.count >= 2 else { return hhmmss }
         return "\(comps[0]):\(comps[1])"
@@ -560,9 +535,23 @@ struct RecurringPaymentView: View {
         comps.hour = 9; comps.minute = 0
         return Calendar.current.date(from: comps) ?? Date()
     }
+
+    private func loadCurrencySymbol() async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+            if let code = try await ProfilesService.shared.getUserCurrency(userId: userId),
+               let sym = CurrencySymbols.symbols[code] {
+                currencySymbol = sym
+            } else {
+                currencySymbol = "$"
+            }
+        } catch {
+            currencySymbol = "$"
+        }
+    }
 }
 
-// MARK: - Category mapping for DBRecurringTransaction
 private extension RecurringTransactionsService.DBRecurringTransaction {
     var categoryEnum: ExpenseCategory {
         guard let raw = category?
@@ -575,7 +564,6 @@ private extension RecurringTransactionsService.DBRecurringTransaction {
     }
 }
 
-// MARK: - Pretty names
 private extension ExpenseCategory {
     var displayName: String {
         switch self {

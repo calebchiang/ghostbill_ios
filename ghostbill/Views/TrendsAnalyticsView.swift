@@ -9,25 +9,19 @@ import SwiftUI
 import Supabase
 
 struct TrendsAnalyticsView: View {
-    // Palette
     private let cardBG    = Color(red: 0.14, green: 0.14, blue: 0.17)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
     private let textMuted = Color(red: 0.80, green: 0.80, blue: 0.85)
     private let stroke    = Color.white.opacity(0.06)
 
-    // Data
     @State private var slices: [TrendSlice] = []
     @State private var points: [SpendingPoint] = []
     @State private var isLoading = false
     @State private var errorText: String?
-
-    // Interaction (line chart selection)
     @State private var selectedSpendingIndex: Int? = nil
-
-    // Navigation
     @State private var showCategoryBreakdown = false
+    @State private var currencySymbol: String = "$"
 
-    // Derived
     private var totalSpend: Double {
         slices.reduce(0) { $0 + $1.total }
     }
@@ -36,7 +30,6 @@ struct TrendsAnalyticsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
 
-                // ===== Section 1: Top Categories (Donut) =====
                 VStack(alignment: .leading, spacing: 12) {
                     Button {
                         showCategoryBreakdown = true
@@ -93,7 +86,7 @@ struct TrendsAnalyticsView: View {
                             .frame(height: 240)
                             .overlay(
                                 VStack(spacing: 2) {
-                                    Text("$\(formatNumber(totalSpend))")
+                                    Text("\(currencySymbol)\(formatNumber(totalSpend))")
                                         .font(.title2.weight(.bold))
                                         .foregroundColor(textLight)
                                     Text("Total Spend")
@@ -102,7 +95,6 @@ struct TrendsAnalyticsView: View {
                                 }
                             )
 
-                        // Legend
                         LazyVGrid(
                             columns: [GridItem(.flexible(), spacing: 12),
                                       GridItem(.flexible(), spacing: 12)],
@@ -137,7 +129,6 @@ struct TrendsAnalyticsView: View {
                     .hidden()
                 )
 
-                // ===== Section 2: Spending Over Time (Line) =====
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("Spending Over Time")
@@ -163,7 +154,8 @@ struct TrendsAnalyticsView: View {
                             LineChartSpendingMonthly(
                                 points: nonZeroPoints.map { ($0.monthStart, $0.total) },
                                 accent: Color(red: 0.58, green: 0.55, blue: 1.00),
-                                selected: $selectedSpendingIndex
+                                selected: $selectedSpendingIndex,
+                                currencySymbol: currencySymbol
                             )
                             .frame(height: 220)
 
@@ -189,10 +181,10 @@ struct TrendsAnalyticsView: View {
                                     .font(.subheadline)
                                     .foregroundColor(textMuted)
                                 Spacer()
-                                Text("$\(formatNumber(avg))") 
+                                Text("\(currencySymbol)\(formatNumber(avg))")
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundColor(textLight)
-                                    .accessibilityLabel("Average monthly spending \(formatNumber(avg))")
+                                    .accessibilityLabel("Average monthly spending \(currencySymbol)\(formatNumber(avg))")
                             }
                         }
                     }
@@ -204,10 +196,10 @@ struct TrendsAnalyticsView: View {
             }
             .padding(.vertical, 10)
             .task { await loadData() }
+            .task { await loadCurrencySymbol() }
         }
     }
 
-    // MARK: - Helpers
     private func percentage(for slice: TrendSlice) -> Int {
         let total = max(1.0, slices.reduce(0) { $0 + $1.total })
         return Int(round((slice.total / total) * 100))
@@ -229,7 +221,6 @@ struct TrendsAnalyticsView: View {
         return nf.string(from: NSNumber(value: value)) ?? "\(Int(value))"
     }
 
-    // MARK: - Data
     private func loadData() async {
         isLoading = true
         errorText = nil
@@ -265,9 +256,23 @@ struct TrendsAnalyticsView: View {
             self.errorText = (error as NSError).localizedDescription
         }
     }
+
+    private func loadCurrencySymbol() async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+            if let code = try await ProfilesService.shared.getUserCurrency(userId: userId),
+               let sym = CurrencySymbols.symbols[code] {
+                currencySymbol = sym
+            } else {
+                currencySymbol = "$"
+            }
+        } catch {
+            currencySymbol = "$"
+        }
+    }
 }
 
-// MARK: - Donut renderer
 fileprivate struct DonutChartView: View {
     let slices: [TrendSlice]
 
@@ -364,25 +369,26 @@ fileprivate struct SegmentShape: Shape {
     }
 }
 
-// MARK: - Spending Line Chart (same rendering method as HistoricalSavingsView)
 fileprivate struct LineChartSpendingMonthly: View {
-    let points: [(Date, Double)]   // oldest -> newest
+    let points: [(Date, Double)]
     let accent: Color
-    @Binding var selected: Int?    // selected point index
+    @Binding var selected: Int?
+    let currencySymbol: String
 
     private let monthDF: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "MMM yyyy"
         return f
     }()
-    private let moneyFormatter: NumberFormatter = {
+
+    private func moneyFormatter(_ symbol: String) -> NumberFormatter {
         let nf = NumberFormatter()
         nf.numberStyle = .currency
-        nf.currencySymbol = "$"
+        nf.currencySymbol = symbol
         nf.maximumFractionDigits = 0
         nf.minimumFractionDigits = 0
         return nf
-    }()
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -434,7 +440,7 @@ fileprivate struct LineChartSpendingMonthly: View {
                     VStack(spacing: 4) {
                         Text(monthDF.string(from: points[sel].0))
                             .font(.caption2.weight(.semibold))
-                        Text(moneyFormatter.string(from: NSNumber(value: points[sel].1)) ?? "$\(Int(points[sel].1))")
+                        Text(moneyFormatter(currencySymbol).string(from: NSNumber(value: points[sel].1)) ?? "\(currencySymbol)\(Int(points[sel].1))")
                             .font(.caption2)
                     }
                     .padding(.vertical, 6)
@@ -487,12 +493,11 @@ fileprivate struct LineChartSpendingMonthly: View {
             return "Spending line chart"
         }
         let month = monthDF.string(from: points[s].0)
-        let val = moneyFormatter.string(from: NSNumber(value: points[s].1)) ?? "$\(Int(points[s].1))"
+        let val = moneyFormatter(currencySymbol).string(from: NSNumber(value: points[s].1)) ?? "\(currencySymbol)\(Int(points[s].1))"
         return "Spending \(month): \(val)"
     }
 }
 
-// MARK: - Local model used by this view
 fileprivate struct TrendSlice: Identifiable, Hashable {
     let id = UUID()
     let category: ExpenseCategory

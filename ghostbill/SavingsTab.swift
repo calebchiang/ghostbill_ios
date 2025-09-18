@@ -31,6 +31,9 @@ struct SavingsTab: View {
     // Reload key for historical section
     @State private var historyReloadKey = UUID()
 
+    // Tour state (loaded from DB)
+    @State private var showSavingsTour = false
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -87,12 +90,26 @@ struct SavingsTab: View {
                     }
                     .padding(.top, 12)
                 }
+
+                // ====== Savings Tour Overlay (only if not seen) ======
+                if showSavingsTour {
+                    SavingsTabTourView(onDismiss: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showSavingsTour = false
+                        }
+                    })
+                    .transition(.opacity)
+                    .zIndex(200)
+                }
             }
             // Keep root screen looking identical
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
         }
-        .task { await refreshSavingsCard() }
+        .task {
+            await refreshSavingsCard()
+            await checkSavingsTourFlag()
+        }
         .sheet(item: $sheetMonth) { item in
             ReviewIncomeView(
                 monthDate: item.date,
@@ -133,6 +150,20 @@ struct SavingsTab: View {
                 self.loading = false
                 self.errorText = error.localizedDescription
             }
+        }
+    }
+
+    // MARK: - Tour flag
+
+    private func checkSavingsTourFlag() async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+            let seen = try await ProfilesService.shared.hasSeenSavingsTour(userId: userId)
+            await MainActor.run { self.showSavingsTour = !seen }
+        } catch {
+            // On error, default to hiding the tour to avoid blocking UI
+            await MainActor.run { self.showSavingsTour = false }
         }
     }
 }

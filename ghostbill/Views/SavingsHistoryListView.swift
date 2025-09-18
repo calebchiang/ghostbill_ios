@@ -9,18 +9,15 @@ import SwiftUI
 import Supabase
 
 struct SavingsHistoryListView: View {
-    // Inputs
     var monthsBack: Int = 24
     var reloadKey: UUID = UUID()
-    /// Called when the user taps "Report" for a missing-income month.
     var onReportIncome: ((Date) -> Void)?
 
-    // State
     @State private var loading = true
     @State private var history: SavingsHistory? = nil
     @State private var errorText: String? = nil
+    @State private var currencySymbol: String = "$"
 
-    // Style
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let cardBG = Color(red: 0.14, green: 0.14, blue: 0.17)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
@@ -32,7 +29,6 @@ struct SavingsHistoryListView: View {
             bg.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 12) {
-                // Header
                 HStack(spacing: 8) {
                     Image(systemName: "chart.line.uptrend.xyaxis")
                         .foregroundColor(accent)
@@ -44,7 +40,6 @@ struct SavingsHistoryListView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
 
-                // Content
                 Group {
                     if loading {
                         VStack(spacing: 10) {
@@ -52,7 +47,7 @@ struct SavingsHistoryListView: View {
                                 RoundedRectangle(cornerRadius: 16)
                                     .fill(Color.white.opacity(0.06))
                                     .frame(height: 60)
-                                    .shimmering() // subtle effect
+                                    .shimmering()
                             }
                         }
                         .padding(.horizontal, 16)
@@ -94,10 +89,9 @@ struct SavingsHistoryListView: View {
             }
         }
         .task(id: reloadKey) { await loadHistory() }
+        .task { await loadCurrencySymbol() }
         .navigationBarTitleDisplayMode(.inline)
     }
-
-    // MARK: - Row Model
 
     private struct RowModel {
         let date: Date
@@ -121,8 +115,6 @@ struct SavingsHistoryListView: View {
 
         return byMonth.values.sorted(by: { $0.date > $1.date })
     }
-
-    // MARK: - Views
 
     @ViewBuilder
     private func rowView(_ row: RowModel) -> some View {
@@ -148,15 +140,14 @@ struct SavingsHistoryListView: View {
 
             if let val = row.savings, row.hasIncome {
                 HStack(spacing: 4) {
-                    // Plain dollar sign, same color and size as the value
-                    Text("$")
+                    Text(currencySymbol)
                         .foregroundColor(textLight)
                         .font(.headline)
                     Text(formatNumber(val))
                         .foregroundColor(textLight)
                         .font(.headline)
                 }
-                .accessibilityLabel("Saved \(formatNumber(val))")
+                .accessibilityLabel("Saved \(currencySymbol)\(formatNumber(val))")
             } else {
                 Button {
                     onReportIncome?(row.date)
@@ -191,8 +182,6 @@ struct SavingsHistoryListView: View {
         )
     }
 
-    // MARK: - Data
-
     private func loadHistory() async {
         await MainActor.run {
             loading = true
@@ -222,7 +211,20 @@ struct SavingsHistoryListView: View {
         }
     }
 
-    // MARK: - Helpers
+    private func loadCurrencySymbol() async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+            if let code = try await ProfilesService.shared.getUserCurrency(userId: userId),
+               let sym = CurrencySymbols.symbols[code] {
+                currencySymbol = sym
+            } else {
+                currencySymbol = "$"
+            }
+        } catch {
+            currencySymbol = "$"
+        }
+    }
 
     private func monthLabel(_ date: Date) -> String {
         let df = DateFormatter()
@@ -238,8 +240,6 @@ struct SavingsHistoryListView: View {
         return nf.string(from: NSNumber(value: value)) ?? "\(Int(value))"
     }
 }
-
-// MARK: - Shimmer Modifier
 
 extension View {
     func shimmering() -> some View {

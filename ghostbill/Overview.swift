@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Supabase
 
 struct CategorySlice: Identifiable {
     let id = UUID()
@@ -16,6 +17,8 @@ struct CategorySlice: Identifiable {
 struct Overview: View {
     let transactions: [DBTransaction]
 
+    @State private var currencySymbol: String = "$"
+
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
     private let textMuted = Color(red: 0.80, green: 0.80, blue: 0.85)
@@ -25,7 +28,6 @@ struct Overview: View {
         let slices = categorySlicesForCurrentMonth()
         let total = slices.reduce(0) { $0 + $1.total }
 
-        // Colors derived from the canonical category tint so they match CategoryBadge icons.
         let colors: [Color] = slices.map { colorForCategoryString($0.category) }
 
         VStack(alignment: .leading, spacing: 12) {
@@ -69,19 +71,30 @@ struct Overview: View {
                     }
                 }
                 .padding(.bottom, 20)
-            } else {
-                Text("No spend yet this month")
-                    .font(.footnote)
-                    .foregroundColor(textMuted)
-                    .padding(.bottom, 20)
             }
         }
         .padding(.horizontal)
         .padding(.top, 8)
         .background(bg.opacity(0.001))
+        .task {
+            await loadCurrencySymbol()
+        }
     }
 
-    // MARK: - Data prep
+    private func loadCurrencySymbol() async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+            if let code = try await ProfilesService.shared.getUserCurrency(userId: userId),
+               let sym = CurrencySymbols.symbols[code] {
+                currencySymbol = sym
+            } else {
+                currencySymbol = "$"
+            }
+        } catch {
+            currencySymbol = "$"
+        }
+    }
 
     private func categorySlicesForCurrentMonth() -> [CategorySlice] {
         let cal = Calendar.current
@@ -89,14 +102,12 @@ struct Overview: View {
         let startOfMonth = cal.date(from: cal.dateComponents([.year, .month], from: now))!
         let endOfMonth = cal.date(byAdding: .month, value: 1, to: startOfMonth)!
 
-        // Only expenses in the donut
         let monthTxs = transactions.filter { tx in
             tx.date >= startOfMonth && tx.date < endOfMonth && tx.amount < 0
         }
 
         var buckets: [String: Double] = [:]
         for tx in monthTxs {
-            // Normalize category string; fallback to "Other"
             let key = (tx.category?.trimmingCharacters(in: .whitespacesAndNewlines))
                 .flatMap { $0.isEmpty ? nil : $0 } ?? "Other"
             buckets[key, default: 0] += abs(tx.amount)
@@ -107,15 +118,11 @@ struct Overview: View {
             .sorted { $0.total > $1.total }
     }
 
-    // MARK: - Helpers
-
-    /// Map raw category string from DB -> canonical enum -> tint color used in icons.
     private func colorForCategoryString(_ raw: String) -> Color {
         let key = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if let cat = ExpenseCategory(rawValue: key) {
             return cat.tint
         }
-        // Simple aliasing if your DB has human labels like "Food & Drink", etc.
         switch key {
         case "food & drink", "restaurant", "food":
             return ExpenseCategory.dining.tint
@@ -141,11 +148,9 @@ struct Overview: View {
     }
 
     private func formatAmount(_ value: Double) -> String {
-        String(format: "$%.2f", value)
+        "\(currencySymbol)\(String(format: "%.2f", value))"
     }
 }
-
-// MARK: - DonutChart (SwiftUI, no mutation inside ViewBuilder)
 
 private struct DonutChart: View {
     let slices: [(label: String, value: Double)]
@@ -158,7 +163,6 @@ private struct DonutChart: View {
             let size = min(rect.width, rect.height)
             let total = max(slices.reduce(0) { $0 + $1.value }, 0.0001)
 
-            // Precompute angles to avoid mutation inside the ViewBuilder.
             let segments: [(start: Angle, end: Angle, color: Color)] = slices.indices.map { idx in
                 let startValue = slices.prefix(idx).reduce(0) { $0 + $1.value }
                 let endValue = startValue + slices[idx].value

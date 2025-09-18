@@ -10,20 +10,18 @@ import Supabase
 import UIKit
 
 struct SpendingAnalyticsView: View {
-    // Palette
     private let cardBG      = Color(red: 0.14, green: 0.14, blue: 0.17)
     private let textLight   = Color(red: 0.96, green: 0.96, blue: 0.96)
     private let textMuted   = Color(red: 0.80, green: 0.80, blue: 0.85)
     private let stroke      = Color.white.opacity(0.06)
     private let divider     = Color.white.opacity(0.08)
-    private let rankIndigo  = Color(red: 0.58, green: 0.55, blue: 1.00) // lighter indigo for ranks
+    private let rankIndigo  = Color(red: 0.58, green: 0.55, blue: 1.00)
 
     @State private var topExpenses: [TopExpense] = []
     @State private var topMerchants: [TopMerchantCount] = []
     @State private var isLoading = false
     @State private var errorText: String?
 
-    // expand/collapse
     @State private var showAllExpenses = false
     @State private var showAllMerchants = false
 
@@ -31,7 +29,6 @@ struct SpendingAnalyticsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
 
-                // ===== Card 1: Top Expensive Purchases =====
                 Card(
                     title: "Top Expensive Purchases",
                     isExpanded: $showAllExpenses
@@ -102,7 +99,6 @@ struct SpendingAnalyticsView: View {
                     }
                 }
 
-                // ===== Card 2: Top merchants by # of transactions =====
                 Card(
                     title: "Top merchants by # of transactions",
                     isExpanded: $showAllMerchants
@@ -170,7 +166,6 @@ struct SpendingAnalyticsView: View {
         }
     }
 
-    // MARK: - Data
     private func loadData() async {
         isLoading = true
         errorText = nil
@@ -182,7 +177,6 @@ struct SpendingAnalyticsView: View {
                 return
             }
 
-            // Fetch 10 for each; UI shows 5 or 10 based on expansion state
             async let expensesTask = TransactionsService.shared.getTopExpensesAllTime(
                 userId: uid,
                 limit: 10
@@ -204,15 +198,15 @@ struct SpendingAnalyticsView: View {
         }
     }
 
-    // MARK: - Formatters
     private func formatAmount(_ value: Double, code: String) -> String {
+        let symbol = CurrencySymbols.symbols[code] ?? "$"
         let nf = NumberFormatter()
         nf.numberStyle = .currency
         nf.maximumFractionDigits = 2
         nf.minimumFractionDigits = 2
         nf.currencyCode = code
-        nf.currencySymbol = "$"
-        return nf.string(from: NSNumber(value: value)) ?? "$\(String(format: "%.2f", value))"
+        nf.currencySymbol = symbol
+        return nf.string(from: NSNumber(value: value)) ?? "\(symbol)\(String(format: "%.2f", value))"
     }
 
     private static func shortDate(_ date: Date) -> String {
@@ -221,11 +215,9 @@ struct SpendingAnalyticsView: View {
         return df.string(from: date)
     }
 
-    // MARK: - Card helper with bottom-centered disclosure (no divider above chevron)
     @ViewBuilder
     private func Card<Content: View>(title: String, isExpanded: Binding<Bool>, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header title only
             HStack(spacing: 8) {
                 Text(title)
                     .font(.headline)
@@ -233,10 +225,8 @@ struct SpendingAnalyticsView: View {
                 Spacer()
             }
 
-            // Content
             content()
 
-            // Bottom centered chevron (no separator above)
             HStack {
                 Spacer()
                 Button {
@@ -259,7 +249,7 @@ struct SpendingAnalyticsView: View {
                 .buttonStyle(.plain)
                 Spacer()
             }
-            .padding(.top, 4) // small breathing room without a divider
+            .padding(.top, 4)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -274,13 +264,12 @@ struct SpendingAnalyticsView: View {
     }
 }
 
-// MARK: - Skeleton Row (inline style, no per-row card)
 private struct RowSkeleton: View {
     var body: some View {
         HStack(spacing: 12) {
             RoundedRectangle(cornerRadius: 2)
                 .fill(Color.white.opacity(0.10))
-                .frame(width: 18, height: 14) // fake rank
+                .frame(width: 18, height: 14)
 
             VStack(alignment: .leading, spacing: 6) {
                 RoundedRectangle(cornerRadius: 4)

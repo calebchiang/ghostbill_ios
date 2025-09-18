@@ -14,7 +14,6 @@ struct TransactionView: View {
     var onUpdated: (DBTransaction) -> Void
     var onDeleted: (UUID) -> Void
 
-    // Local copy we can update after edits
     @State private var tx: DBTransaction
 
     // Edit state
@@ -39,6 +38,8 @@ struct TransactionView: View {
     private let indigo    = Color(red: 0.31, green: 0.27, blue: 0.90)
 
     @Environment(\.dismiss) private var dismiss
+
+    @State private var currencySymbol: String = "$"
 
     init(
         transaction: DBTransaction,
@@ -65,7 +66,7 @@ struct TransactionView: View {
                     }
 
                     if isEditing {
-                        editCard   // no header card in edit mode
+                        editCard
                     } else {
                         headerCard
                         detailsCard
@@ -108,6 +109,9 @@ struct TransactionView: View {
                 Task { await deleteTapped() }
             }
             Button("Cancel", role: .cancel) {}
+        }
+        .task {
+            await loadCurrencySymbol()
         }
     }
 
@@ -182,7 +186,6 @@ struct TransactionView: View {
                     .font(.title3.bold())
                     .foregroundColor(textLight)
                 Spacer()
-                // Red trash icon acts as remove button
                 Button(role: .destructive) {
                     showDeleteConfirm = true
                 } label: {
@@ -209,7 +212,7 @@ struct TransactionView: View {
                 HStack(spacing: 8) {
                     Text(tx.amount < 0 ? "-" : "+")
                         .foregroundColor(textMuted)
-                    Text("$")
+                    Text(currencySymbol)
                         .foregroundColor(textMuted)
                     TextField("0.00", text: $formAmount)
                         .keyboardType(.decimalPad)
@@ -255,7 +258,6 @@ struct TransactionView: View {
                     .foregroundColor(textLight)
             }
 
-            // Actions
             VStack(spacing: 10) {
                 Button {
                     Task { await updateTapped() }
@@ -304,7 +306,7 @@ struct TransactionView: View {
                 .font(.subheadline.weight(.medium))
                 .foregroundColor(valueColor ?? textLight)
                 .textSelection(.enabled)
-                .if(monospaced) { $0.monospaced() } // iOS 16-safe
+                .if(monospaced) { $0.monospaced() }
         }
         .padding(.vertical, 10)
     }
@@ -347,14 +349,14 @@ struct TransactionView: View {
                 userId: userId,
                 id: tx.id,
                 amount: signedAmount,
-                currency: nil,                 // unchanged
+                currency: nil,
                 date: formDate,
                 merchant: formMerchant.isEmpty ? nil : formMerchant,
                 category: formCategory,
                 note: formNotes.isEmpty ? nil : formNotes
             )
             tx = updated
-            onUpdated(updated)                 // 👉 notify parent list
+            onUpdated(updated)
             withAnimation(.easeInOut) { isEditing = false }
         } catch {
             errorText = error.localizedDescription
@@ -371,8 +373,8 @@ struct TransactionView: View {
         isSaving = true
         do {
             _ = try await TransactionsService.shared.deleteTransaction(userId: userId, id: tx.id)
-            onDeleted(tx.id)                   // 👉 notify parent list
-            dismiss()                          // pop back after delete
+            onDeleted(tx.id)
+            dismiss()
         } catch {
             errorText = error.localizedDescription
         }
@@ -381,24 +383,30 @@ struct TransactionView: View {
 
     // MARK: - Formatting
 
-    /// Display like +$12.34 or -$45.67 (no currency code in the string).
     private func formatAmountDisplay(_ amount: Double) -> String {
-        let nf = NumberFormatter()
-        nf.numberStyle = .currency
-        nf.currencySymbol = "$"
-        nf.currencyCode = "" // do not append code
-        nf.maximumFractionDigits = 2
-        nf.minimumFractionDigits = 0
-
         let sign = amount < 0 ? "-" : "+"
-        let absStr = nf.string(from: NSNumber(value: abs(amount))) ?? "$\(abs(amount))"
-        return "\(sign)\(absStr)"
+        return "\(sign)\(currencySymbol)\(String(format: "%.2f", abs(amount)))"
     }
 
     private func longDate(_ date: Date) -> String {
         let df = DateFormatter()
         df.dateFormat = "EEEE, MMMM d, yyyy"
         return df.string(from: date)
+    }
+
+    private func loadCurrencySymbol() async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+            if let code = try await ProfilesService.shared.getUserCurrency(userId: userId),
+               let sym = CurrencySymbols.symbols[code] {
+                currencySymbol = sym
+            } else {
+                currencySymbol = "$"
+            }
+        } catch {
+            currencySymbol = "$"
+        }
     }
 }
 
