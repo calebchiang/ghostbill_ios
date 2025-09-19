@@ -7,9 +7,9 @@
 
 import SwiftUI
 import UIKit
+import Supabase
 
 struct MainTabView: View {
-    // Custom bar with a center Scan control (no label for Scan)
     enum Tab: Hashable { case home, recurring, savings, analytics }
 
     @State private var selected: Tab = .home
@@ -21,9 +21,6 @@ struct MainTabView: View {
 
     @State private var ocrResult: OCRResult? = nil
     @State private var reloadKey = UUID()
-
-    // 👇 Hoist the tour state here so the Scan button can interact with it
-    @State private var showHomeTour = false
 
     @EnvironmentObject var session: SessionStore
 
@@ -39,11 +36,10 @@ struct MainTabView: View {
             bg.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // ==== CONTENT AREA ====
                 Group {
                     switch selected {
                     case .home:
-                        HomeTab(reloadKey: reloadKey)   // no overlay inside HomeTab anymore
+                        HomeTab(reloadKey: reloadKey)
                     case .recurring:
                         RecurringTab()
                     case .savings:
@@ -54,7 +50,6 @@ struct MainTabView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                // ==== CUSTOM TAB BAR ====
                 CustomTabBar(
                     selected: $selected,
                     barBG: barBG,
@@ -62,41 +57,10 @@ struct MainTabView: View {
                     indigoSelected: indigoSelected,
                     textLight: textLight,
                     textMuted: textMuted,
-                    onScanTapped: {
-                        // If tour is up on Home, dismiss & persist before opening scanner
-                        if selected == .home && showHomeTour {
-                            Task {
-                                do {
-                                    let session = try await SupabaseManager.shared.client.auth.session
-                                    let userId = session.user.id
-                                    try await ProfilesService.shared.setSeenHomeTour(userId: userId, seen: true)
-                                } catch {
-                                    print("⚠️ Failed to persist seen_home_tour from Scan tap: \(error.localizedDescription)")
-                                }
-                                await MainActor.run { showHomeTour = false }
-                                await MainActor.run { showScanner = true }
-                            }
-                            return
-                        }
-                        showScanner = true
-                    }
+                    onScanTapped: { showScanner = true }
                 )
             }
 
-            // ==== HOME TOUR OVERLAY (hosted here so Scan can close it) ====
-            if selected == .home && showHomeTour {
-                HomeTabTourView {
-                    // onDismiss from the tour component (it already persisted)
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showHomeTour = false
-                    }
-                }
-                .ignoresSafeArea()
-                .transition(.opacity)
-                .zIndex(10_000)
-            }
-
-            // Loading overlay during OCR
             if isLoadingScan {
                 ZStack {
                     bg.ignoresSafeArea()
@@ -119,42 +83,22 @@ struct MainTabView: View {
                     showScanner = false
                     guard let img = scannedImage else { return }
 
-                    print("📸 Scanned image: \(Int(img.size.width))x\(Int(img.size.height)) @\(img.scale)x, orientation=\(img.imageOrientation.rawValue)")
-
                     isLoadingScan = true
                     Task {
                         do {
                             let result = try await ReceiptOCR.shared.extract(from: img)
-                            print("🧾 OCR MERCHANT:", result.merchant ?? "nil")
-                            print("🧾 OCR AMOUNT:", result.amount ?? "nil")
-                            if let d = result.date {
-                                print("🧾 OCR DATE:", d.description)
-                            } else {
-                                print("🧾 OCR DATE: nil")
-                            }
-                            print("🧾 OCR CATEGORY:", result.category.rawValue, "(confidence:", result.categoryConfidence, ")")
-                            print("🧾 OCR RAW TEXT BEGIN =======================")
-                            print(result.rawText)
-                            print("🧾 OCR RAW TEXT END   =======================")
-
                             ocrResult = result
                             isLoadingScan = false
                             showReview = true
                         } catch {
-                            print("❌ OCR ERROR:", error.localizedDescription)
                             ocrResult = nil
                             isLoadingScan = false
                             showReview = true
                         }
                     }
                 },
-                onCancel: {
-                    showScanner = false
-                },
-                onError: { err in
-                    print("❌ Camera error:", err.localizedDescription)
-                    showScanner = false
-                },
+                onCancel: { showScanner = false },
+                onError: { _ in showScanner = false },
                 onManualAdd: {
                     showScanner = false
                     isLoadingScan = false
@@ -172,10 +116,7 @@ struct MainTabView: View {
                 initialCategory: ocrResult?.category,
                 onSave: { merchant, amountString, pickedDate, category, note in
                     Task {
-                        guard let amountString, let parsed = parseAmount(amountString) else {
-                            print("❌ Save error: invalid amount '\(amountString ?? "nil")'")
-                            return
-                        }
+                        guard let amountString, let parsed = parseAmount(amountString) else { return }
                         let amountToStore = -abs(parsed)
 
                         do {
@@ -184,7 +125,7 @@ struct MainTabView: View {
                             let currency = (try? await TransactionsService.shared.fetchProfileCurrency(userId: userId)) ?? "USD"
                             let dateToStore = pickedDate ?? Date()
 
-                            let inserted = try await TransactionsService.shared.insertTransaction(
+                            _ = try await TransactionsService.shared.insertTransaction(
                                 userId: userId,
                                 amount: amountToStore,
                                 currency: currency,
@@ -193,8 +134,6 @@ struct MainTabView: View {
                                 category: category,
                                 note: (note?.isEmpty == true) ? nil : note
                             )
-
-                            print("✅ Saved transaction:", inserted.id, inserted.amount, inserted.currency, inserted.date)
 
                             await MainActor.run {
                                 reloadKey = UUID()
@@ -223,25 +162,6 @@ struct MainTabView: View {
                 }
             )
         }
-        // When switching to Home, check whether to show the tour
-        .task(id: selected) {
-            if selected == .home {
-                await checkHomeTourFlag()
-            }
-        }
-    }
-
-    // MARK: - Helpers
-
-    private func checkHomeTourFlag() async {
-        do {
-            let session = try await SupabaseManager.shared.client.auth.session
-            let userId = session.user.id
-            let seen = try await ProfilesService.shared.hasSeenHomeTour(userId: userId)
-            await MainActor.run { self.showHomeTour = !seen }
-        } catch {
-            await MainActor.run { self.showHomeTour = false }
-        }
     }
 
     private func parseAmount(_ raw: String) -> Double? {
@@ -257,7 +177,6 @@ struct MainTabView: View {
     }
 }
 
-// MARK: - Custom Tab Bar (unchanged except onScanTapped handling in parent)
 private struct CustomTabBar: View {
     @Binding var selected: MainTabView.Tab
 
@@ -280,7 +199,7 @@ private struct CustomTabBar: View {
 
                 HStack {
                     tabButton(
-                        system: selected == .home ? "house.fill" : "house.fill",
+                        system: "house.fill",
                         label: "Home",
                         isSelected: selected == .home
                     ) { selected = .home }

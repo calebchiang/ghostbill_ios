@@ -33,6 +33,7 @@ struct HomeTab: View {
     @State private var showingAddSheet = false
     @State private var showingProfile = false
     @State private var showingFeedback = false
+    @State private var showingPaywall = false
 
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
@@ -54,8 +55,6 @@ struct HomeTab: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-
-                        // --- Header: Welcome + help & profile icons ---
                         HStack(spacing: 12) {
                             Text("Welcome")
                                 .font(.title)
@@ -80,12 +79,10 @@ struct HomeTab: View {
                         }
                         .padding(.horizontal)
 
-                        // --- Overview ---
                         Overview(transactions: transactions)
                             .padding(.horizontal)
                             .padding(.top, 8)
 
-                        // --- Recent Transactions header with Add to the left of Filter ---
                         HStack {
                             Text("Recent Transactions")
                                 .font(.title2)
@@ -155,16 +152,13 @@ struct HomeTab: View {
                 .navigationBarTitleDisplayMode(.inline)
             }
         }
-        // Feedback sheet
         .sheet(isPresented: $showingFeedback) {
             FeedbackView()
         }
-        // Profile sheet
         .sheet(isPresented: $showingProfile) {
             UserProfileView()
                 .environmentObject(session)
         }
-        // Add transaction sheet
         .sheet(isPresented: $showingAddSheet) {
             AddTransactionView(
                 onSave: { merchant, amountString, pickedDate, type, category, notes in
@@ -203,12 +197,38 @@ struct HomeTab: View {
                 onCancel: { showingAddSheet = false }
             )
         }
+        .fullScreenCover(isPresented: $showingPaywall) {
+            PaywallView {
+                Task {
+                    do {
+                        let session = try await SupabaseManager.shared.client.auth.session
+                        let userId = session.user.id
+                        try await ProfilesService.shared.setSeenPaywall(userId: userId, seen: true)
+                    } catch {
+                        print("⚠️ Failed to persist seen_paywall: \(error.localizedDescription)")
+                    }
+                    await MainActor.run { showingPaywall = false }
+                }
+            }
+        }
         .task(id: reloadKey) {
             await loadTransactions()
         }
+        .task {
+            await checkPaywall()
+        }
     }
 
-    // MARK: - Data
+    private func checkPaywall() async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+            let seen = try await ProfilesService.shared.hasSeenPaywall(userId: userId)
+            await MainActor.run { showingPaywall = !seen }
+        } catch {
+            await MainActor.run { showingPaywall = false }
+        }
+    }
 
     private func loadTransactions() async {
         loading = true
@@ -231,8 +251,6 @@ struct HomeTab: View {
         }
         loading = false
     }
-
-    // MARK: - Misc
 
     private func currentMonthTitle() -> String {
         let df = DateFormatter()
