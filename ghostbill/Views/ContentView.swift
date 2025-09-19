@@ -10,6 +10,9 @@ import Supabase
 
 struct ContentView: View {
     @State private var email: String = ""
+    @State private var showToast: Bool = false
+    @State private var toastMessage: String = ""
+    @FocusState private var emailFocused: Bool
     @Environment(\.supabaseClient) private var supabase
 
     var body: some View {
@@ -51,16 +54,29 @@ struct ContentView: View {
                                 .stroke(Color(red: 0.22, green: 0.22, blue: 0.25), lineWidth: 1)
                         )
                         .cornerRadius(12)
+                        .focused($emailFocused)
 
                     Button(action: {
                         let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !trimmed.isEmpty else { return }
+                        emailFocused = false
                         Task {
                             do {
                                 try await supabase.auth.signInWithOTP(
                                     email: trimmed,
                                     redirectTo: URL(string: AppConfig.redirectURLString)
                                 )
+                                await MainActor.run {
+                                    toastMessage = "Check your email and click the link to log in."
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                        showToast = true
+                                    }
+                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                                    withAnimation(.easeOut(duration: 0.25)) {
+                                        showToast = false
+                                    }
+                                }
                             } catch {
                                 print("Failed to send magic link: \(error)")
                             }
@@ -73,7 +89,7 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity, minHeight: 44)
                     }
                     .background(Color(red: 0.31, green: 0.27, blue: 0.90))
-                    .cornerRadius(12)
+                    .cornerRadius(40)
                 }
                 .padding(.horizontal, 32)
                 .frame(maxWidth: 420)
@@ -100,6 +116,30 @@ struct ContentView: View {
                 .padding(.bottom, 140)
             }
             .padding(.top, 65)
+        }
+        .overlay(alignment: .top) {
+            if showToast {
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.white)
+                        .imageScale(.large)
+                    Text(toastMessage)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)   
+                        .fill(Color.green.opacity(0.9))
+                )
+                .padding(.top, 40)
+                .padding(.horizontal, 24)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 4)
+                .ignoresSafeArea(.keyboard)
+            }
         }
     }
 }

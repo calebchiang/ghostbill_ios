@@ -87,7 +87,7 @@ struct ReviewRecurringTransactionView: View {
                     DatePicker("Next Payment Date", selection: $nextDate, displayedComponents: .date)
                 }
 
-                // MARK: Notifications (permission requested on toggle)
+                // MARK: Notifications
                 Section(header: Text("Notifications")) {
                     Toggle(isOn: $notifyEnabled.animation(.easeInOut(duration: 0.15))) {
                         Text("Enable reminder before next payment")
@@ -114,7 +114,6 @@ struct ReviewRecurringTransactionView: View {
 
                         DatePicker("Reminder time", selection: $notifyTime, displayedComponents: .hourAndMinute)
 
-                        // Subtle helper text indicating when it will fire (or why it's invalid)
                         if let fire = computedReminderDate {
                             HStack(spacing: 8) {
                                 Image(systemName: reminderInPast ? "exclamationmark.triangle.fill" : "bell")
@@ -163,7 +162,6 @@ struct ReviewRecurringTransactionView: View {
             return
         }
         if notifyEnabled && reminderInPast {
-            // Extra guard in case button enabling state is bypassed
             errorText = "Reminder time is in the past. Adjust lead days or time."
             return
         }
@@ -175,9 +173,21 @@ struct ReviewRecurringTransactionView: View {
             let session = try await SupabaseManager.shared.client.auth.session
             let userId = session.user.id
 
+            // 🔍 Free plan enforcement
+            let isFree = try await ProfilesService.shared.isFreeUser(userId: userId)
+            if isFree {
+                let remaining = try await TransactionCheckerService.shared.remainingFreeTransactions(userId: userId)
+                if remaining <= 0 {
+                    await MainActor.run {
+                        errorText = "Free plan limit reached. Upgrade to add more recurring transactions."
+                    }
+                    return
+                }
+            }
+
             let startOfDay = Calendar.current.startOfDay(for: nextDate)
 
-            // Insert in DB
+            // Insert recurring
             let inserted = try await RecurringTransactionsService.shared.insertRecurringTransaction(
                 userId: userId,
                 merchantName: merchantName,
@@ -192,15 +202,9 @@ struct ReviewRecurringTransactionView: View {
                 notifyTime: notifyEnabled ? notifyTime : nil
             )
 
-            // Schedule the local notification for this item (best-effort)
             if inserted.notifications_enabled {
-                do {
-                    try await RecurringNotificationsHelper.shared.scheduleNext(for: inserted)
-                } catch {
-                    #if DEBUG
-                    print("Scheduling notification failed: \(error)")
-                    #endif
-                }
+                do { try await RecurringNotificationsHelper.shared.scheduleNext(for: inserted) }
+                catch { print("Scheduling notification failed: \(error)") }
             }
 
             await MainActor.run { onSaved() }
@@ -241,7 +245,7 @@ private extension ExpenseCategory {
         case .housing:       return "Housing"
         case .entertainment: return "Entertainment"
         case .travel:        return "Travel"
-        case .personal:     return "Personal"
+        case .personal:      return "Personal"
         case .income:        return "Income"
         case .other:         return "Other"
         }

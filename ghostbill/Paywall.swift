@@ -13,7 +13,7 @@ struct PaywallView: View {
     private let bg = Color(red: 0.92, green: 0.94, blue: 1.0)
 
     private let monthlyPrice: Decimal = 4.99
-    private let discountRate: Decimal = 0.30
+    private let discountRate: Decimal = 0.50
 
     private func forceEnding99(_ value: Decimal) -> Decimal {
         var v = value
@@ -57,7 +57,7 @@ struct PaywallView: View {
             ScrollView {
                 VStack(spacing: 28) {
                     VStack(spacing: 10) {
-                        Text("Understand where your money goes.")
+                        Text("Peace of Mind For Every Purchase.")
                             .font(.title).bold()
                             .multilineTextAlignment(.center)
                             .foregroundColor(.black)
@@ -120,7 +120,7 @@ struct PaywallView: View {
                             )
                         }
 
-                        Text("Save 30% with yearly billing.")
+                        Text("Save 50% with yearly billing.")
                             .font(.footnote.weight(.semibold))
                             .foregroundColor(.black.opacity(0.7))
                             .padding(.top, 4)

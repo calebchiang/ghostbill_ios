@@ -22,6 +22,11 @@ struct MainTabView: View {
     @State private var ocrResult: OCRResult? = nil
     @State private var reloadKey = UUID()
 
+    // 🔔 Toast state
+    @State private var showToast = false
+    @State private var toastMessage = ""
+    @State private var toastIsError = false
+
     @EnvironmentObject var session: SessionStore
 
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
@@ -125,6 +130,30 @@ struct MainTabView: View {
                             let currency = (try? await TransactionsService.shared.fetchProfileCurrency(userId: userId)) ?? "USD"
                             let dateToStore = pickedDate ?? Date()
 
+                            // 🔍 Step 1: check free plan
+                            let isFree = try await ProfilesService.shared.isFreeUser(userId: userId)
+
+                            if isFree {
+                                let remaining = try await TransactionCheckerService.shared.remainingFreeTransactions(userId: userId)
+                                if remaining <= 0 {
+                                    await MainActor.run {
+                                        showReview = false
+                                        toastMessage = "Free plan limit reached. Upgrade to add more."
+                                        toastIsError = true
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                            showToast = true
+                                        }
+                                    }
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                                        withAnimation(.easeOut(duration: 0.25)) {
+                                            showToast = false
+                                        }
+                                    }
+                                    return
+                                }
+                            }
+
+                            // ✅ Insert transaction
                             _ = try await TransactionsService.shared.insertTransaction(
                                 userId: userId,
                                 amount: amountToStore,
@@ -143,6 +172,19 @@ struct MainTabView: View {
                                 ocrResult = nil
                             }
                         } catch {
+                            await MainActor.run {
+                                showReview = false
+                                toastMessage = "Failed to save transaction."
+                                toastIsError = true
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                    showToast = true
+                                }
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                                withAnimation(.easeOut(duration: 0.25)) {
+                                    showToast = false
+                                }
+                            }
                             print("❌ Insert error:", error.localizedDescription)
                         }
                     }
@@ -161,6 +203,31 @@ struct MainTabView: View {
                     ocrResult = nil
                 }
             )
+        }
+        // 🔔 Toast overlay
+        .overlay(alignment: .top) {
+            if showToast {
+                HStack(spacing: 10) {
+                    Image(systemName: toastIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                        .foregroundColor(.white)
+                        .imageScale(.large)
+                    Text(toastMessage)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(toastIsError ? Color.red.opacity(0.9) : Color.green.opacity(0.9))
+                )
+                .padding(.top, 40)
+                .padding(.horizontal, 24)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 4)
+                .ignoresSafeArea(.keyboard)
+            }
         }
     }
 

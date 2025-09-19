@@ -34,7 +34,7 @@ struct RootView: View {
                 MainTabView()
             }
         }
-        .preferredColorScheme(.dark)   // 👈 locks app appearance
+        .preferredColorScheme(.dark) 
         .task(id: session.isAuthenticated) {
             if session.isAuthenticated {
                 loading = true

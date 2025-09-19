@@ -23,6 +23,10 @@ struct ProfilesService {
     private struct CurrencyRow: Decodable, Sendable {
         let currency: String?
     }
+    
+    private struct FreePlanRow: Decodable, Sendable {
+        let free_plan: Bool
+    }
 
     private func fetchFlags(userId: UUID) async throws -> FlagsRow? {
         let rows: [FlagsRow] = try await client
@@ -100,6 +104,19 @@ struct ProfilesService {
             .execute()
             .value
         return rows.first?.currency
+    }
+    
+    // MARK: - Free plan check
+    
+    func isFreeUser(userId: UUID) async throws -> Bool {
+        let rows: [FreePlanRow] = try await client
+            .from("profiles")
+            .select("free_plan")
+            .eq("user_id", value: userId)
+            .limit(1)
+            .execute()
+            .value
+        return rows.first?.free_plan ?? true
     }
 }
 

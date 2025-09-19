@@ -270,4 +270,3 @@ struct HomeTab: View {
         return isParenNegative ? -v : v
     }
 }
-

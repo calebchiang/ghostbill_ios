@@ -169,7 +169,6 @@ struct OnboardingView: View {
     }
 
     var body: some View {
-        // No NavigationStack — we keep everything local to unify transitions
         VStack(spacing: 0) {
             // Reserve space for progress at top, so content never overlaps
             OnboardProgressBar(progress: progressValue)
@@ -190,12 +189,12 @@ struct OnboardingView: View {
                                 .frame(width: 80, height: 80)
                                 .clipShape(RoundedRectangle(cornerRadius: 20))
 
-                            Text("Welcome to Ghostbill")
+                            Text("Welcome to Ghostbill 👋")
                                 .font(.title2)
                                 .fontWeight(.semibold)
 
-                            Text("Our mission is to help you take control of your money.")
-                                .font(.footnote)
+                            Text("Simple tools to help you stay in control.")
+                                .font(.body)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
                                 .frame(maxWidth: 240)
@@ -271,7 +270,6 @@ struct OnboardingView: View {
                                 .buttonStyle(.bordered)
 
                             Button("Finish") {
-                                // ✅ No fade here — close immediately after saving
                                 Task { await saveAndFinish() }
                             }
                             .buttonStyle(.borderedProminent)
