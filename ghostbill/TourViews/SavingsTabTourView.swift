@@ -11,7 +11,6 @@ import Supabase
 struct SavingsTabTourView: View {
     var onDismiss: () -> Void = {}
 
-    // Local step state
     @State private var stepIndex: Int = 0
     @State private var isFinishing: Bool = false
 
@@ -40,7 +39,6 @@ struct SavingsTabTourView: View {
 
     var body: some View {
         ZStack {
-            // Dim background — allow taps through on step 2 so the Add Income button is tappable.
             Color.black.opacity(0.5)
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
@@ -48,7 +46,6 @@ struct SavingsTabTourView: View {
 
             GeometryReader { geo in
                 if stepIndex == 0 {
-                    // STEP 1: centered card
                     VStack {
                         Spacer(minLength: 0)
                         card
@@ -56,9 +53,7 @@ struct SavingsTabTourView: View {
                     }
                     .padding(.horizontal, 24)
                 } else {
-                    // STEP 2: arrow above, card lower
                     ZStack {
-                        // Card lower on screen
                         VStack {
                             card
                                 .padding(.top, geo.safeAreaInsets.top + 220)
@@ -67,7 +62,6 @@ struct SavingsTabTourView: View {
                             Spacer(minLength: 0)
                         }
 
-                        // Arrow ABOVE the card (about 40pt above)
                         Image(systemName: "arrow.up")
                             .font(.system(size: 28, weight: .bold))
                             .foregroundColor(.white)
@@ -83,10 +77,8 @@ struct SavingsTabTourView: View {
         .animation(.easeInOut(duration: 0.25), value: stepIndex)
     }
 
-    // MARK: - Card (matches other tours)
     private var card: some View {
         VStack(spacing: 16) {
-            // Progress dots (2 steps)
             HStack(spacing: 6) {
                 ForEach(steps.indices, id: \.self) { i in
                     Circle()
@@ -108,7 +100,6 @@ struct SavingsTabTourView: View {
             }
             .padding(.top, 2)
 
-            // Title (show a savings icon on step 1 only)
             HStack(spacing: 8) {
                 if stepIndex == 0 {
                     Image(systemName: "banknote")
@@ -135,7 +126,6 @@ struct SavingsTabTourView: View {
                 if let secondary = steps[stepIndex].secondary {
                     Button {
                         if stepIndex == 0 {
-                            // Skip on step 1 => mark seen + dismiss
                             finishTour()
                         } else {
                             withAnimation(.easeInOut(duration: 0.22)) {
@@ -163,7 +153,6 @@ struct SavingsTabTourView: View {
                             stepIndex = 1
                         }
                     } else {
-                        // Close on step 2 => mark seen + dismiss
                         finishTour()
                     }
                 } label: {
@@ -184,17 +173,36 @@ struct SavingsTabTourView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
         .background(
-            Color(red: 0.34, green: 0.25, blue: 0.70) // same solid purple as other tours
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.indigo.opacity(0.95),
+                            Color.blue.opacity(0.90)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
         )
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.cyan.opacity(0.7),
+                            Color.mint.opacity(0.45)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
         )
         .shadow(color: Color.black.opacity(0.35), radius: 28, x: 0, y: 14)
     }
 
-    // MARK: - Persist + dismiss
     private func finishTour() {
         guard !isFinishing else { return }
         isFinishing = true

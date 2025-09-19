@@ -53,7 +53,6 @@ struct RecurringTabTourView: View {
             GeometryReader { geo in
                 switch stepIndex {
                 case 0:
-                    // STEP 1: centered card
                     VStack {
                         Spacer(minLength: 0)
                         card
@@ -62,7 +61,6 @@ struct RecurringTabTourView: View {
                     .padding(.horizontal, 24)
 
                 case 1:
-                    // STEP 2: card near the top (avoid covering +) + arrow pointing to top-right
                     ZStack(alignment: .topTrailing) {
                         VStack {
                             card
@@ -81,7 +79,6 @@ struct RecurringTabTourView: View {
                     }
 
                 default:
-                    // STEP 3: centered card again
                     VStack {
                         Spacer(minLength: 0)
                         card
@@ -94,10 +91,8 @@ struct RecurringTabTourView: View {
         .animation(.easeInOut(duration: 0.25), value: stepIndex)
     }
 
-    // MARK: - Card (matches Home tour style)
     private var card: some View {
         VStack(spacing: 16) {
-            // Progress dots
             HStack(spacing: 6) {
                 ForEach(steps.indices, id: \.self) { i in
                     Circle()
@@ -119,7 +114,6 @@ struct RecurringTabTourView: View {
             }
             .padding(.top, 2)
 
-            // Title (no icon on step 1; calendar icon on step 3)
             HStack(spacing: 8) {
                 if stepIndex == 2 {
                     Image(systemName: "calendar")
@@ -136,14 +130,12 @@ struct RecurringTabTourView: View {
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 6)
 
-            // Body text
             Text(steps[stepIndex].body)
                 .font(.callout)
                 .foregroundColor(.white.opacity(0.95))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
-            // Step 3: centered green circle under the text (no label)
             if stepIndex == 2 {
                 Circle()
                     .fill(Color.green)
@@ -153,7 +145,7 @@ struct RecurringTabTourView: View {
                             .stroke(Color.white.opacity(0.85), lineWidth: 0.5)
                     )
                     .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 1)
-                    .frame(maxWidth: .infinity) // center horizontally
+                    .frame(maxWidth: .infinity)
                     .padding(.top, -2)
             }
 
@@ -161,10 +153,10 @@ struct RecurringTabTourView: View {
                 if let secondary = steps[stepIndex].secondary {
                     Button {
                         if stepIndex == 0 {
-                            finishTour() // Skip on step 1 = mark seen + dismiss
+                            finishTour()
                         } else {
                             withAnimation(.easeInOut(duration: 0.22)) {
-                                stepIndex = max(0, stepIndex - 1)  // Back on steps 2–3
+                                stepIndex = max(0, stepIndex - 1)
                             }
                         }
                     } label: {
@@ -188,7 +180,6 @@ struct RecurringTabTourView: View {
                             stepIndex += 1
                         }
                     } else {
-                        // Step 3 primary = Close
                         finishTour()
                     }
                 } label: {
@@ -209,17 +200,36 @@ struct RecurringTabTourView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
         .background(
-            Color(red: 0.34, green: 0.25, blue: 0.70) // same solid purple as Home tour
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.indigo.opacity(0.95),
+                            Color.blue.opacity(0.90)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
         )
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.cyan.opacity(0.7),
+                            Color.mint.opacity(0.45)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
         )
         .shadow(color: Color.black.opacity(0.35), radius: 28, x: 0, y: 14)
     }
 
-    // MARK: - Persist + dismiss
     private func finishTour() {
         guard !isFinishing else { return }
         isFinishing = true

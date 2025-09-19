@@ -25,12 +25,11 @@ struct HomeTabTourView: View {
         let secondary: String?
     }
 
-    // Steps for the Home tab tour (keep the wording you provided)
     private let steps: [Step] = [
         Step(
-            title: "Welcome to GhostBill 👋",
-            body: "Let's start tracking your spending.",
-            primary: "Get started!",
+            title: "Let's get started!👋",
+            body: "Begin by recording your first transaction.",
+            primary: "Learn how",
             secondary: "Skip"
         ),
         Step(
@@ -43,11 +42,9 @@ struct HomeTabTourView: View {
 
     var body: some View {
         ZStack {
-            // Dim background around the card
             Color.black.opacity(0.5)
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
-                // Allow outside taps to close ONLY on step 1; on step 2 let taps pass through to the tab bar
                 .onTapGesture { if stepIndex == 0 { finishTour() } }
                 .allowsHitTesting(stepIndex == 0)
 
@@ -177,13 +174,35 @@ struct HomeTabTourView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
+        // --- Indigo background with a subtle gradient ---
         .background(
-            Color(red: 0.34, green: 0.25, blue: 0.70) // ← solid purple (no gradient)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.indigo.opacity(0.95),
+                            Color.blue.opacity(0.90)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
         )
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        // --- Complimentary border (cyan -> mint) ---
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1) // solid, subtle stroke
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.cyan.opacity(0.7),
+                            Color.mint.opacity(0.45)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
         )
         .shadow(color: Color.black.opacity(0.35), radius: 28, x: 0, y: 14)
     }
