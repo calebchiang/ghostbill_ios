@@ -27,10 +27,12 @@ struct ReviewRecurringTransactionView: View {
     @State private var isSaving = false
     @State private var errorText: String?
 
+    @State private var showToast = false
+    @State private var toastMessage = ""
+    @State private var toastIsError = false
+
     var onCancel: () -> Void
     var onSaved: () -> Void
-
-    // MARK: - Computed reminder date & validation
 
     private var computedReminderDate: Date? {
         guard notifyEnabled else { return nil }
@@ -51,101 +53,126 @@ struct ReviewRecurringTransactionView: View {
 
     var body: some View {
         NavigationView {
-            Form {
-                // MARK: Merchant
-                Section(header: Text("Merchant")) {
-                    TextField("e.g. Netflix, Rent", text: $merchantName)
-                        .textInputAutocapitalization(.words)
-                }
+            ZStack {
+                Form {
+                    Section(header: Text("Merchant")) {
+                        TextField("e.g. Netflix, Rent", text: $merchantName)
+                            .textInputAutocapitalization(.words)
+                    }
 
-                // MARK: Amount
-                Section(header: Text("Amount")) {
-                    TextField("e.g. 9.99", text: $amountText)
-                        .keyboardType(.decimalPad)
-                }
+                    Section(header: Text("Amount")) {
+                        TextField("e.g. 9.99", text: $amountText)
+                            .keyboardType(.decimalPad)
+                    }
 
-                // MARK: Category
-                Section(header: Text("Category")) {
-                    Picker("Select category", selection: $category) {
-                        ForEach(ExpenseCategory.allCases, id: \.self) { c in
-                            Text(c.displayName).tag(c)
+                    Section(header: Text("Category")) {
+                        Picker("Select category", selection: $category) {
+                            ForEach(ExpenseCategory.allCases, id: \.self) { c in
+                                Text(c.displayName).tag(c)
+                            }
                         }
-                    }
-                    .pickerStyle(MenuPickerStyle())
-                }
-
-                // MARK: Schedule
-                Section(header: Text("Schedule")) {
-                    Picker("Frequency", selection: $frequency) {
-                        Text("Daily").tag(RecurringTransactionsService.RecurrenceFrequency.daily)
-                        Text("Weekly").tag(RecurringTransactionsService.RecurrenceFrequency.weekly)
-                        Text("Biweekly").tag(RecurringTransactionsService.RecurrenceFrequency.biweekly)
-                        Text("Monthly").tag(RecurringTransactionsService.RecurrenceFrequency.monthly)
-                        Text("Yearly").tag(RecurringTransactionsService.RecurrenceFrequency.yearly)
+                        .pickerStyle(MenuPickerStyle())
                     }
 
-                    DatePicker("Next Payment Date", selection: $nextDate, displayedComponents: .date)
-                }
+                    Section(header: Text("Schedule")) {
+                        Picker("Frequency", selection: $frequency) {
+                            Text("Daily").tag(RecurringTransactionsService.RecurrenceFrequency.daily)
+                            Text("Weekly").tag(RecurringTransactionsService.RecurrenceFrequency.weekly)
+                            Text("Biweekly").tag(RecurringTransactionsService.RecurrenceFrequency.biweekly)
+                            Text("Monthly").tag(RecurringTransactionsService.RecurrenceFrequency.monthly)
+                            Text("Yearly").tag(RecurringTransactionsService.RecurrenceFrequency.yearly)
+                        }
 
-                // MARK: Notifications
-                Section(header: Text("Notifications")) {
-                    Toggle(isOn: $notifyEnabled.animation(.easeInOut(duration: 0.15))) {
-                        Text("Enable reminder before next payment")
+                        DatePicker("Next Payment Date", selection: $nextDate, displayedComponents: .date)
                     }
-                    .onChange(of: notifyEnabled) { isOn in
-                        guard isOn else { return }
-                        Task {
-                            let allowed = await RecurringNotificationsHelper.shared.requestAuthorizationIfNeeded()
-                            if !allowed {
-                                await MainActor.run {
-                                    notifyEnabled = false
-                                    errorText = "Notifications are disabled. Enable them in Settings > Notifications > Ghostbill."
+
+                    Section(header: Text("Notifications")) {
+                        Toggle(isOn: $notifyEnabled.animation(.easeInOut(duration: 0.15))) {
+                            Text("Enable reminder before next payment")
+                        }
+                        .onChange(of: notifyEnabled) { isOn in
+                            guard isOn else { return }
+                            Task {
+                                let allowed = await RecurringNotificationsHelper.shared.requestAuthorizationIfNeeded()
+                                if !allowed {
+                                    await MainActor.run {
+                                        notifyEnabled = false
+                                        errorText = "Notifications are disabled. Enable them in Settings > Notifications > Ghostbill."
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    if notifyEnabled {
-                        Picker("Remind me", selection: $leadDays) {
-                            ForEach(1...14, id: \.self) { d in
-                                Text(d == 1 ? "1 day before" : "\(d) days before").tag(d)
+                        if notifyEnabled {
+                            Picker("Remind me", selection: $leadDays) {
+                                ForEach(1...14, id: \.self) { d in
+                                    Text(d == 1 ? "1 day before" : "\(d) days before").tag(d)
+                                }
+                            }
+
+                            DatePicker("Reminder time", selection: $notifyTime, displayedComponents: .hourAndMinute)
+
+                            if let fire = computedReminderDate {
+                                HStack(spacing: 8) {
+                                    Image(systemName: reminderInPast ? "exclamationmark.triangle.fill" : "bell")
+                                    Text(reminderInPast
+                                         ? "Reminder time is in the past."
+                                         : "Will notify \(formatFriendlyDateTime(fire)).")
+                                }
+                                .font(.footnote)
+                                .foregroundColor(reminderInPast ? .orange : .secondary)
+                                .padding(.top, 2)
                             }
                         }
+                    }
 
-                        DatePicker("Reminder time", selection: $notifyTime, displayedComponents: .hourAndMinute)
-
-                        if let fire = computedReminderDate {
-                            HStack(spacing: 8) {
-                                Image(systemName: reminderInPast ? "exclamationmark.triangle.fill" : "bell")
-                                Text(reminderInPast
-                                     ? "Reminder time is in the past."
-                                     : "Will notify \(formatFriendlyDateTime(fire)).")
-                            }
-                            .font(.footnote)
-                            .foregroundColor(reminderInPast ? .orange : .secondary)
-                            .padding(.top, 2)
+                    if let errorText {
+                        Section {
+                            Text(errorText)
+                                .foregroundColor(.red)
                         }
                     }
                 }
+                .navigationTitle("New Recurring")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { onCancel() }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(isSaving ? "Saving…" : "Save") {
+                            Task { await save() }
+                        }
+                        .disabled(isSaving || (notifyEnabled && reminderInPast))
+                    }
+                }
 
-                if let errorText {
-                    Section {
-                        Text(errorText)
-                            .foregroundColor(.red)
+                if showToast {
+                    VStack {
+                        HStack(spacing: 10) {
+                            Image(systemName: toastIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                                .foregroundColor(.white)
+                                .imageScale(.large)
+                            Text(toastMessage)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(toastIsError ? Color.red.opacity(0.9) : Color.green.opacity(0.9))
+                        )
+                        .padding(.top, 40)
+                        .padding(.horizontal, 24)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 4)
+                        .ignoresSafeArea(.keyboard)
+
+                        Spacer()
                     }
-                }
-            }
-            .navigationTitle("New Recurring")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { onCancel() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? "Saving…" : "Save") {
-                        Task { await save() }
-                    }
-                    .disabled(isSaving || (notifyEnabled && reminderInPast))
+                    .animation(.spring(response: 0.3, dampingFraction: 0.9), value: showToast)
                 }
             }
         }
@@ -173,13 +200,21 @@ struct ReviewRecurringTransactionView: View {
             let session = try await SupabaseManager.shared.client.auth.session
             let userId = session.user.id
 
-            // 🔍 Free plan enforcement
             let isFree = try await ProfilesService.shared.isFreeUser(userId: userId)
             if isFree {
                 let remaining = try await TransactionCheckerService.shared.remainingFreeTransactions(userId: userId)
                 if remaining <= 0 {
                     await MainActor.run {
-                        errorText = "Free plan limit reached. Upgrade to add more recurring transactions."
+                        toastMessage = "Free plan limit reached. Upgrade to add more."
+                        toastIsError = true
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                            showToast = true
+                        }
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            showToast = false
+                        }
                     }
                     return
                 }
@@ -187,7 +222,6 @@ struct ReviewRecurringTransactionView: View {
 
             let startOfDay = Calendar.current.startOfDay(for: nextDate)
 
-            // Insert recurring
             let inserted = try await RecurringTransactionsService.shared.insertRecurringTransaction(
                 userId: userId,
                 merchantName: merchantName,

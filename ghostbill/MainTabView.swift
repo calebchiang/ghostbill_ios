@@ -22,7 +22,6 @@ struct MainTabView: View {
     @State private var ocrResult: OCRResult? = nil
     @State private var reloadKey = UUID()
 
-    // 🔔 Toast state
     @State private var showToast = false
     @State private var toastMessage = ""
     @State private var toastIsError = false
@@ -153,7 +152,6 @@ struct MainTabView: View {
                                 }
                             }
 
-                            // ✅ Insert transaction
                             _ = try await TransactionsService.shared.insertTransaction(
                                 userId: userId,
                                 amount: amountToStore,

@@ -6,48 +6,76 @@
 //
 
 import SwiftUI
+import RevenueCat
 
 struct PaywallView: View {
     var onDismiss: () -> Void
 
+    @StateObject private var purchases = PurchaseManager()
+    @State private var isRestoring = false
+    @State private var restoreMessage: String?
+
     private let bg = Color(red: 0.92, green: 0.94, blue: 1.0)
 
-    private let monthlyPrice: Decimal = 4.99
-    private let discountRate: Decimal = 0.50
-
-    private func forceEnding99(_ value: Decimal) -> Decimal {
-        var v = value
-        var floored = Decimal()
-        NSDecimalRound(&floored, &v, 0, .down)
-        return floored - Decimal(0.01)
-    }
-    private func forceEnding49(_ value: Decimal) -> Decimal {
-        var v = value
-        var floored = Decimal()
-        NSDecimalRound(&floored, &v, 0, .down)
-        return floored + Decimal(0.49)
+    // MARK: - Supabase current user id → UUID
+    private func currentUserUUID() -> UUID? {
+        // Supabase Swift client’s `User.id` is a UUID in recent versions.
+        // If your version returns a String, this still works because UUID(user.id) will be valid.
+        let user = SupabaseManager.shared.client.auth.currentUser
+        #if compiler(>=5.9)
+        return user?.id
+        #else
+        // Fallback if your SDK exposes id as String
+        if let idString = (user?.id as? String) { return UUID(uuidString: idString) }
+        return nil
+        #endif
     }
 
-    private func money(_ value: Decimal) -> String {
-        let n = NSDecimalNumber(decimal: value)
+    // MARK: - Localized formatting helpers (use StoreKit currency)
+    private func formatCurrency(_ amount: Decimal, currencyCode: String) -> String {
+        let n = NSDecimalNumber(decimal: amount)
         let f = NumberFormatter()
         f.numberStyle = .currency
-        if #available(iOS 16.0, *) {
-            f.currencyCode = Locale.current.currency?.identifier ?? "USD"
-        } else {
-            f.currencyCode = Locale.current.currencyCode ?? "USD"
-        }
+        f.currencyCode = currencyCode
         f.maximumFractionDigits = 2
         f.minimumFractionDigits = 2
-        return f.string(from: n) ?? "$\(n)"
+        return f.string(from: n) ?? "\(amount)"
     }
 
-    private var annualFullDisplay: Decimal { Decimal(5.00) * 12 }
-    private var annualDiscountedDisplay: Decimal {
-        forceEnding99(annualFullDisplay * (Decimal(1) - discountRate))
+    // Fallback when StoreProduct.currencyCode is nil
+    private func currentCurrencyCodeFallback() -> String {
+        if #available(iOS 16.0, *) {
+            return Locale.current.currency?.identifier ?? "USD"
+        } else {
+            return Locale.current.currencyCode ?? "USD"
+        }
     }
-    private var annualPerMonthDisplay: Decimal {
-        forceEnding49(annualDiscountedDisplay / Decimal(12))
+
+    // "C$3.33 / mo" derived from the yearly product price
+    private func perMonthString(from yearlyPackage: Package) -> String {
+        let currency = yearlyPackage.storeProduct.currencyCode
+            ?? currentCurrencyCodeFallback()
+        let perMonth = yearlyPackage.storeProduct.price / Decimal(12)
+        return "\(formatCurrency(perMonth, currencyCode: currency)) / mo"
+    }
+
+    // 12 × monthly price, formatted using the yearly product's currency
+    private func annualFullPriceString(monthlyPackage: Package, preferCurrencyFrom yearlyPackage: Package) -> String {
+        let full = monthlyPackage.storeProduct.price * Decimal(12)
+        let currency = yearlyPackage.storeProduct.currencyCode
+            ?? currentCurrencyCodeFallback()
+        return formatCurrency(full, currencyCode: currency)
+    }
+
+    // Save % computed from localized StoreKit prices
+    private func savePercentString(monthlyPackage: Package, yearlyPackage: Package) -> String? {
+        let full = monthlyPackage.storeProduct.price * Decimal(12)
+        guard full > 0 else { return nil }
+        let rate = max(Decimal(0), Decimal(1) - (yearlyPackage.storeProduct.price / full))
+        let percent = (rate as NSDecimalNumber).doubleValue * 100.0
+        let rounded = Int(percent.rounded())
+        guard rounded > 0 else { return nil }
+        return "Save \(rounded)% with yearly billing."
     }
 
     var body: some View {
@@ -56,20 +84,30 @@ struct PaywallView: View {
 
             ScrollView {
                 VStack(spacing: 28) {
+                    // Header
                     VStack(spacing: 10) {
                         Text("Peace of Mind For Every Purchase.")
                             .font(.title).bold()
                             .multilineTextAlignment(.center)
                             .foregroundColor(.black)
 
-                        Text("Only \(money(annualPerMonthDisplay)) per month billed yearly.")
-                            .font(.subheadline)
-                            .foregroundColor(.black.opacity(0.7))
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: 420)
+                        if let yearly = purchases.annualPackage {
+                            Text("Only \(perMonthString(from: yearly)) billed yearly.")
+                                .font(.subheadline)
+                                .foregroundColor(.black.opacity(0.7))
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: 420)
+                        } else {
+                            Text("Loading prices…")
+                                .font(.subheadline)
+                                .foregroundColor(.black.opacity(0.5))
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: 420)
+                        }
                     }
                     .padding(.top, 80)
 
+                    // Icons
                     HStack(spacing: 14) {
                         RoundedIconContainer(imageName: "calendar_icon",
                                              bgColor: Color(red: 0.86, green: 0.90, blue: 1.00))
@@ -81,6 +119,7 @@ struct PaywallView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, 8)
 
+                    // Benefits
                     VStack(spacing: 12) {
                         Text("Keep your finances clear and stress-free.")
                             .font(.title3).bold()
@@ -97,33 +136,126 @@ struct PaywallView: View {
                         .frame(maxWidth: 300, alignment: .leading)
                     }
 
+                    // Plans
                     VStack(spacing: 14) {
                         VStack(spacing: 10) {
+                            // YEARLY (localized)
                             PlanCard(
                                 title: "Yearly",
-                                subtitleStruck: money(annualFullDisplay),
-                                subtitle: money(annualDiscountedDisplay),
-                                trailing: "\(money(annualPerMonthDisplay)) / mo",
+                                subtitleStruck: {
+                                    if let m = purchases.monthlyPackage,
+                                       let y = purchases.annualPackage {
+                                        return annualFullPriceString(monthlyPackage: m, preferCurrencyFrom: y)
+                                    } else { return nil }
+                                }(),
+                                subtitle: purchases.annualPackage?.storeProduct.localizedPriceString ?? "—",
+                                trailing: purchases.annualPackage.map { perMonthString(from: $0) } ?? "",
                                 highlight: true,
                                 badge: "Most Popular",
-                                onTap: {} // no-op
+                                onTap: {
+                                    guard let pkg = purchases.annualPackage else { return }
+                                    purchases.purchase(package: pkg) { result in
+                                        if case .success = result { onDismiss() }
+                                        if case .failure(let e) = result { purchases.lastError = e.localizedDescription }
+                                    }
+                                }
                             )
+                            .disabled(purchases.isLoading || purchases.annualPackage == nil)
+                            .opacity((purchases.annualPackage == nil) ? 0.6 : 1)
 
+                            // MONTHLY (localized)
                             PlanCard(
                                 title: "Monthly",
                                 subtitleStruck: nil,
-                                subtitle: "\(money(monthlyPrice)) / mo",
+                                subtitle: {
+                                    if let m = purchases.monthlyPackage {
+                                        return "\(m.storeProduct.localizedPriceString) / mo"
+                                    } else { return "—" }
+                                }(),
                                 trailing: "",
                                 highlight: false,
                                 badge: nil,
-                                onTap: {} // no-op
+                                onTap: {
+                                    guard let pkg = purchases.monthlyPackage else { return }
+                                    purchases.purchase(package: pkg) { result in
+                                        if case .success = result { onDismiss() }
+                                        if case .failure(let e) = result { purchases.lastError = e.localizedDescription }
+                                    }
+                                }
                             )
+                            .disabled(purchases.isLoading || purchases.monthlyPackage == nil)
+                            .opacity((purchases.monthlyPackage == nil) ? 0.6 : 1)
                         }
 
-                        Text("Save 50% with yearly billing.")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundColor(.black.opacity(0.7))
-                            .padding(.top, 4)
+                        if purchases.isLoading {
+                            ProgressView().padding(.top, 2)
+                        }
+
+                        if let err = purchases.lastError {
+                            Text(err)
+                                .font(.footnote)
+                                .foregroundColor(.red)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                        }
+
+                        // Dynamic, localized savings message
+                        if let m = purchases.monthlyPackage, let y = purchases.annualPackage,
+                           let saveText = savePercentString(monthlyPackage: m, yearlyPackage: y) {
+                            Text(saveText)
+                                .font(.footnote.weight(.semibold))
+                                .foregroundColor(.black.opacity(0.7))
+                                .padding(.top, 4)
+                        }
+
+                        // Restore Purchases (text-only, centered)
+                        VStack(spacing: 8) {
+                            HStack {
+                                Spacer()
+                                Button {
+                                    guard !isRestoring else { return }
+                                    // make sure userId is set before restore
+                                    if purchases.userId == nil, let uid = currentUserUUID() {
+                                        purchases.setUser(id: uid)
+                                    }
+                                    isRestoring = true
+                                    restoreMessage = nil
+                                    purchases.restore { result in
+                                        isRestoring = false
+                                        switch result {
+                                        case .success:
+                                            restoreMessage = "Purchases restored."
+                                        case .cancelled:
+                                            break
+                                        case .failure(let e):
+                                            restoreMessage = "Restore failed: \(e.localizedDescription)"
+                                        }
+                                    }
+                                } label: {
+                                    if isRestoring {
+                                        HStack(spacing: 6) {
+                                            ProgressView().scaleEffect(0.8)
+                                            Text("Restore Purchases").underline()
+                                        }
+                                    } else {
+                                        Text("Restore Purchases").underline()
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundColor(.blue)
+                                .contentShape(Rectangle())
+                                .padding(.vertical, 6)
+                                Spacer()
+                            }
+
+                            if let msg = restoreMessage {
+                                Text(msg)
+                                    .font(.footnote)
+                                    .foregroundColor(msg.contains("failed") ? .red : .green)
+                                    .multilineTextAlignment(.center)
+                            }
+                        }
+                        .padding(.top, 4)
                     }
                     .frame(maxWidth: 520)
                 }
@@ -145,6 +277,15 @@ struct PaywallView: View {
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .allowsHitTesting(true)
+        }
+        .onAppear {
+            // IMPORTANT: tie PM to the signed-in user so it can update Supabase on success/restore
+            if purchases.userId == nil, let uid = currentUserUUID() {
+                purchases.setUser(id: uid)
+            }
+            if purchases.offerings == nil && !purchases.isLoading {
+                purchases.start()
+            }
         }
     }
 }
@@ -195,11 +336,13 @@ private struct PlanCard: View {
                     .fill(.white.opacity(0.8))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(highlight ? Color.indigo : Color.black.opacity(0.12), lineWidth: highlight ? 2 : 1)
+                            .stroke(highlight ? Color.indigo : Color.black.opacity(0.12),
+                                    lineWidth: highlight ? 2 : 1)
                     )
-                    .shadow(color: .black.opacity(highlight ? 0.12 : 0.06), radius: highlight ? 18 : 10, x: 0, y: highlight ? 8 : 4)
+                    .shadow(color: .black.opacity(highlight ? 0.12 : 0.06),
+                            radius: highlight ? 18 : 10, x: 0, y: highlight ? 8 : 4)
 
-                if let badge {
+                if let badge = badge {
                     Text(badge)
                         .font(.caption2.weight(.semibold))
                         .padding(.horizontal, 8)
@@ -213,7 +356,7 @@ private struct PlanCard: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title).font(.headline).foregroundColor(.black)
                         HStack(spacing: 6) {
-                            if let subtitleStruck {
+                            if let subtitleStruck = subtitleStruck {
                                 Text(subtitleStruck)
                                     .foregroundColor(.black.opacity(0.45))
                                     .strikethrough()

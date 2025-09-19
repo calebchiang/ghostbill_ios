@@ -35,6 +35,10 @@ struct HomeTab: View {
     @State private var showingFeedback = false
     @State private var showingPaywall = false
 
+    @State private var showToast = false
+    @State private var toastMessage = ""
+    @State private var toastIsError = false
+
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
 
@@ -163,18 +167,35 @@ struct HomeTab: View {
             AddTransactionView(
                 onSave: { merchant, amountString, pickedDate, type, category, notes in
                     Task {
-                        guard let amountString, let parsed = parseAmount(amountString) else {
-                            print("❌ Save error: invalid amount '\(amountString ?? "nil")'")
-                            return
-                        }
+                        guard let amountString, let parsed = parseAmount(amountString) else { return }
                         let amountToStore = (type == .income) ? abs(parsed) : -abs(parsed)
-
                         do {
                             let session = try await SupabaseManager.shared.client.auth.session
                             let userId = session.user.id
                             let currency = (try? await TransactionsService.shared.fetchProfileCurrency(userId: userId)) ?? "USD"
                             let dateToStore = pickedDate ?? Date()
                             let typeString = (type == .income) ? "income" : "expense"
+
+                            let isFree = try await ProfilesService.shared.isFreeUser(userId: userId)
+                            if isFree {
+                                let remaining = try await TransactionCheckerService.shared.remainingFreeTransactions(userId: userId)
+                                if remaining <= 0 {
+                                    await MainActor.run {
+                                        showingAddSheet = false
+                                        toastMessage = "Free plan limit reached. Upgrade to add more."
+                                        toastIsError = true
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                            showToast = true
+                                        }
+                                    }
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                                        withAnimation(.easeOut(duration: 0.25)) {
+                                            showToast = false
+                                        }
+                                    }
+                                    return
+                                }
+                            }
 
                             _ = try await TransactionsService.shared.insertTransaction(
                                 userId: userId,
@@ -190,7 +211,19 @@ struct HomeTab: View {
                             await MainActor.run { showingAddSheet = false }
                             await loadTransactions()
                         } catch {
-                            print("❌ Insert error:", error.localizedDescription)
+                            await MainActor.run {
+                                showingAddSheet = false
+                                toastMessage = "Failed to save transaction."
+                                toastIsError = true
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                    showToast = true
+                                }
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                                withAnimation(.easeOut(duration: 0.25)) {
+                                    showToast = false
+                                }
+                            }
                         }
                     }
                 },
@@ -216,6 +249,30 @@ struct HomeTab: View {
         }
         .task {
             await checkPaywall()
+        }
+        .overlay(alignment: .top) {
+            if showToast {
+                HStack(spacing: 10) {
+                    Image(systemName: toastIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                        .foregroundColor(.white)
+                        .imageScale(.large)
+                    Text(toastMessage)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(toastIsError ? Color.red.opacity(0.9) : Color.green.opacity(0.9))
+                )
+                .padding(.top, 40)
+                .padding(.horizontal, 24)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 4)
+                .ignoresSafeArea(.keyboard)
+            }
         }
     }
 
@@ -270,3 +327,4 @@ struct HomeTab: View {
         return isParenNegative ? -v : v
     }
 }
+

@@ -9,18 +9,15 @@ import SwiftUI
 import Supabase
 
 struct ReviewIncomeView: View {
-    // MARK: - Props
     let monthDate: Date
     var onCancel: () -> Void
     var onSaved: () -> Void
 
-    // MARK: - State
     @State private var amountText: String = ""
     @State private var dayText: String = ""
     @State private var isSaving = false
     @State private var errorText: String?
 
-    // Palette
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let cardBG = Color(red: 0.14, green: 0.14, blue: 0.17)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
@@ -28,18 +25,18 @@ struct ReviewIncomeView: View {
     private let stroke = Color.white.opacity(0.06)
     private let indigo = Color(red: 0.31, green: 0.27, blue: 0.90)
 
-    // MARK: - Body
+    @State private var showToast = false
+    @State private var toastMessage = ""
+    @State private var toastIsError = false
 
     var body: some View {
         VStack(spacing: 0) {
-            // Grabber
             Capsule()
                 .fill(Color.white.opacity(0.2))
                 .frame(width: 42, height: 5)
                 .padding(.top, 10)
                 .padding(.bottom, 8)
 
-            // Title + subtle description
             VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Report income")
@@ -59,9 +56,7 @@ struct ReviewIncomeView: View {
             .padding(.horizontal, 20)
             .padding(.top, 24)
 
-            // Card with inputs
             VStack(alignment: .leading, spacing: 16) {
-                // Amount
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Amount")
                         .font(.footnote.weight(.semibold))
@@ -85,19 +80,16 @@ struct ReviewIncomeView: View {
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(stroke, lineWidth: 1))
                 }
 
-                // Simple manual day input
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Pay date")
                         .font(.footnote.weight(.semibold))
                         .foregroundColor(textMuted)
 
                     HStack(spacing: 10) {
-                        // Abbreviated month label (e.g., "Sep")
                         Text(monthAbbrev(monthDate))
                             .font(.body.weight(.semibold))
                             .foregroundColor(textLight)
 
-                        // Day number input
                         TextField("DD", text: dayBindingLimited)
                             .keyboardType(.numberPad)
                             .textInputAutocapitalization(.never)
@@ -130,7 +122,6 @@ struct ReviewIncomeView: View {
 
             Spacer(minLength: 12)
 
-            // Actions
             VStack(spacing: 10) {
                 Button {
                     Task { await save() }
@@ -164,7 +155,6 @@ struct ReviewIncomeView: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.hidden)
         .onAppear {
-            // Default the day to "today" if it's in this month, otherwise "1"
             let cal = Calendar(identifier: .gregorian)
             let sameMonth = cal.isDate(monthDate, equalTo: Date(), toGranularity: .month)
             if sameMonth {
@@ -174,9 +164,31 @@ struct ReviewIncomeView: View {
                 dayText = "1"
             }
         }
+        .overlay(alignment: .top) {
+            if showToast {
+                HStack(spacing: 10) {
+                    Image(systemName: toastIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                        .foregroundColor(.white)
+                        .imageScale(.large)
+                    Text(toastMessage)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(toastIsError ? Color.red.opacity(0.9) : Color.green.opacity(0.9))
+                )
+                .padding(.top, 40)
+                .padding(.horizontal, 24)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 4)
+                .ignoresSafeArea(.keyboard)
+            }
+        }
     }
-
-    // MARK: - Derived values & bindings
 
     private var daysInMonth: Int {
         let cal = Calendar(identifier: .gregorian)
@@ -184,21 +196,16 @@ struct ReviewIncomeView: View {
         return cal.range(of: .day, in: .month, for: start)?.count ?? 31
     }
 
-    // Sanitize day input to digits only and limit length
     private var dayBindingLimited: Binding<String> {
         Binding<String>(
             get: { dayText },
             set: { newVal in
-                // keep digits only
                 let digits = newVal.filter { $0.isNumber }
-                // limit to 2 chars (enough for all months)
                 let trimmed = String(digits.prefix(2))
                 dayText = trimmed
             }
         )
     }
-
-    // MARK: - Actions
 
     private func save() async {
         errorText = nil
@@ -208,13 +215,11 @@ struct ReviewIncomeView: View {
             return
         }
 
-        // Validate and build date from the (year, month) of monthDate and the entered day
         guard let day = Int(dayText), (1...daysInMonth).contains(day) else {
             errorText = "Day must be between 1 and \(daysInMonth)."
             return
         }
 
-        // Build the actual date
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = .current
         var comps = cal.dateComponents([.year, .month], from: monthDate)
@@ -231,6 +236,26 @@ struct ReviewIncomeView: View {
             let session = try await SupabaseManager.shared.client.auth.session
             let userId = session.user.id
 
+            let isFree = try await ProfilesService.shared.isFreeUser(userId: userId)
+            if isFree {
+                let remaining = try await TransactionCheckerService.shared.remainingFreeTransactions(userId: userId)
+                if remaining <= 0 {
+                    await MainActor.run {
+                        toastMessage = "Free plan limit reached. Upgrade to add more."
+                        toastIsError = true
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                            showToast = true
+                        }
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            showToast = false
+                        }
+                    }
+                    return
+                }
+            }
+
             _ = try await TransactionsService.shared.insertIncomeForMonth(
                 userId: userId,
                 amount: amount,
@@ -245,8 +270,6 @@ struct ReviewIncomeView: View {
             await MainActor.run { errorText = error.localizedDescription }
         }
     }
-
-    // MARK: - Formatting & parsing
 
     private func fullMonthLabel(_ date: Date) -> String {
         let df = DateFormatter()
