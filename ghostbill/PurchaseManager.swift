@@ -67,22 +67,20 @@ final class PurchaseManager: ObservableObject {
             if let error { completion(.failure(error)); return }
 
             if let uid = self.userId {
-                let pid = package.storeProduct.productIdentifier
                 Task {
                     do {
-                        if pid == ProductID.yearly {
-                            try await ProfilesService.shared.setYearlyActive(userId: uid)
-                        } else if pid == ProductID.monthly {
-                            try await ProfilesService.shared.setMonthlyActive(userId: uid)
-                        } else {
-                            await self.applyCustomerInfoAndUpdateBackend(userId: uid)
-                        }
+                        try await ProfilesService.shared.setPaid(userId: uid, paid: true)
+                        await MainActor.run { completion(.success) }
                     } catch {
-                        self.lastError = "Failed to update plan: \(error.localizedDescription)"
+                        await MainActor.run {
+                            self.lastError = "Failed to update plan: \(error.localizedDescription)"
+                            completion(.failure(error))
+                        }
                     }
                 }
+            } else {
+                completion(.success)
             }
-            completion(.success)
         }
     }
 
@@ -91,9 +89,13 @@ final class PurchaseManager: ObservableObject {
             guard let self else { return }
             if let error { completion(.failure(error)); return }
             if let uid = self.userId {
-                Task { await self.applyCustomerInfoAndUpdateBackend(userId: uid) }
+                Task {
+                    await self.applyCustomerInfoAndUpdateBackend(userId: uid)
+                    await MainActor.run { completion(.success) }
+                }
+            } else {
+                completion(.success)
             }
-            completion(.success)
         }
     }
 
@@ -101,13 +103,8 @@ final class PurchaseManager: ObservableObject {
         do {
             let info = try await Purchases.shared.customerInfo()
             let active = info.activeSubscriptions
-            if active.contains(ProductID.yearly) {
-                try await ProfilesService.shared.setYearlyActive(userId: userId)
-            } else if active.contains(ProductID.monthly) {
-                try await ProfilesService.shared.setMonthlyActive(userId: userId)
-            } else {
-                try await ProfilesService.shared.setFree(userId: userId)
-            }
+            let isPaid = !active.isEmpty
+            try await ProfilesService.shared.setPaid(userId: userId, paid: isPaid)
         } catch {
             self.lastError = "Failed to sync subscription status: \(error.localizedDescription)"
         }

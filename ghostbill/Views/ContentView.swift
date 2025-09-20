@@ -99,7 +99,32 @@ struct ContentView: View {
                     .foregroundColor(Color(red: 0.72, green: 0.72, blue: 0.76))
                     .padding(.top, 18)
 
-                Button(action: {}) {
+                Button(action: {
+                    emailFocused = false
+                    Task {
+                        do {
+                            let redirect = URL(string: AppConfig.redirectURLString)! // e.g. "ghostbill://auth-callback"
+                            try await supabase.auth.signInWithOAuth(
+                                provider: .google,
+                                redirectTo: redirect,
+                                scopes: "openid email profile"
+                            )
+                        } catch {
+                            await MainActor.run {
+                                toastMessage = "Google sign-in failed. Please try again."
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                    showToast = true
+                                }
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                                withAnimation(.easeOut(duration: 0.25)) {
+                                    showToast = false
+                                }
+                            }
+                            print("Google OAuth start failed:", error.localizedDescription)
+                        }
+                    }
+                }) {
                     Image("google_logo")
                         .resizable()
                         .scaledToFit()
@@ -131,7 +156,7 @@ struct ContentView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)   
+                    RoundedRectangle(cornerRadius: 12)
                         .fill(Color.green.opacity(0.9))
                 )
                 .padding(.top, 40)

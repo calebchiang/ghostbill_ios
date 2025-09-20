@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Supabase
+import RevenueCat
 
 struct UserProfileView: View {
     @EnvironmentObject var session: SessionStore
@@ -15,6 +16,9 @@ struct UserProfileView: View {
     @State private var email: String = ""
     @State private var planName: String = "Loading…"
     @State private var showPaywall: Bool = false
+    @State private var showDeleteAlert: Bool = false
+
+    @State private var isFreeUser: Bool = true
 
     private let bg        = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let cardBG    = Color(red: 0.14, green: 0.14, blue: 0.17)
@@ -27,12 +31,10 @@ struct UserProfileView: View {
                 bg.ignoresSafeArea()
 
                 VStack(spacing: 24) {
-                    // Profile icon
                     Image(systemName: "person.crop.circle.fill")
                         .font(.system(size: 80))
                         .foregroundColor(textLight.opacity(0.9))
 
-                    // User info form style
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Text("Email:")
@@ -42,6 +44,8 @@ struct UserProfileView: View {
                             Text(email)
                                 .font(.subheadline)
                                 .foregroundColor(textMuted)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
                         }
 
                         HStack {
@@ -54,23 +58,49 @@ struct UserProfileView: View {
                                 .foregroundColor(textMuted)
                         }
 
-                        Button(action: { showPaywall = true }) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "sparkles")
-                                    .symbolRenderingMode(.hierarchical)
-                                    .foregroundStyle(Color(red: 0.65, green: 0.95, blue: 0.75))
-                                Text("Unlimited Access")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundColor(Color(red: 0.65, green: 0.95, blue: 0.75))
+                        if isFreeUser {
+                            Button(action: { showPaywall = true }) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "sparkles")
+                                        .symbolRenderingMode(.hierarchical)
+                                        .foregroundStyle(Color(red: 0.65, green: 0.95, blue: 0.75))
+                                    Text("Unlimited Access")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundColor(Color(red: 0.65, green: 0.95, blue: 0.75))
+                                }
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(Color.white.opacity(0.06))
+                                )
                             }
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(Color.white.opacity(0.06))
-                            )
+                            .padding(.top, 4)
+                        } else {
+                            Button {
+                                Purchases.shared.showManageSubscriptions { error in
+                                    if let error {
+                                        print("Manage subscriptions error: \(error.localizedDescription)")
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "gearshape.fill")
+                                        .symbolRenderingMode(.hierarchical)
+                                        .foregroundStyle(Color(red: 0.65, green: 0.85, blue: 0.95))
+                                    Text("Manage Subscription")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundColor(Color(red: 0.65, green: 0.85, blue: 0.95))
+                                }
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(Color.white.opacity(0.06))
+                                )
+                            }
+                            .padding(.top, 4)
                         }
-                        .padding(.top, 4)
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity)
@@ -84,9 +114,56 @@ struct UserProfileView: View {
                     )
                     .padding(.horizontal)
 
+                    Text("Dangerous Actions")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(textLight)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Button {
+                            showDeleteAlert = true
+                        } label: {
+                            Text("Delete Account")
+                                .font(.subheadline.weight(.semibold))
+                                .underline()
+                                .foregroundColor(.red)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(cardBG)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                    )
+                    .padding(.horizontal)
+                    .alert("Delete Account?", isPresented: $showDeleteAlert) {
+                        Button("Delete Account", role: .destructive) {
+                            Task {
+                                do {
+                                    let client = SupabaseManager.shared.client
+                                    _ = try await client.functions.invoke("hyper-api") as Void
+                                    await MainActor.run {
+                                        session.signOut()
+                                        dismiss()
+                                    }
+                                } catch {
+                                    print("Delete account failed:", error.localizedDescription)
+                                }
+                            }
+                        }
+                        Button("Cancel", role: .cancel) { }
+                    } message: {
+                        Text("This will permanently delete your account and all associated data. This action cannot be undone.")
+                    }
+
                     Spacer()
 
-                    // Sign Out button
                     Button {
                         session.signOut()
                         dismiss()
@@ -111,6 +188,7 @@ struct UserProfileView: View {
         .fullScreenCover(isPresented: $showPaywall) {
             PaywallView {
                 showPaywall = false
+                Task { await loadProfile() }
             }
         }
     }
@@ -127,12 +205,14 @@ struct UserProfileView: View {
 
             let free = try await ProfilesService.shared.isFreeUser(userId: userId)
             await MainActor.run {
+                self.isFreeUser = free
                 self.planName = free ? "Free Plan" : "Paid Plan"
             }
         } catch {
             await MainActor.run {
                 self.email = "Unknown"
                 self.planName = "Error loading plan"
+                self.isFreeUser = true
             }
         }
     }

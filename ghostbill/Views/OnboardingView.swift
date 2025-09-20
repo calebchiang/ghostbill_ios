@@ -116,7 +116,6 @@ struct OnboardingView: View {
         "TRY","INR","RUB","BRL","ZAR"
     ]
 
-    // progress mapping
     private var progressValue: CGFloat {
         switch step {
         case .welcome:  return 1.0/3.0
@@ -125,7 +124,6 @@ struct OnboardingView: View {
         }
     }
 
-    // Crossfade helper (fade out -> swap -> fade in)
     private func crossfade(_ change: @escaping () -> Void, then completion: (() -> Void)? = nil) {
         guard !isAnimating else { return }
         isAnimating = true
@@ -140,29 +138,29 @@ struct OnboardingView: View {
         }
     }
 
-    // Supabase save
+    // Ensure UI mutations happen on the main thread
+    @MainActor
     private func saveAndFinish() async {
         submitting = true
         do {
-            let session = try await SupabaseManager.shared.client.auth.session
-            let userId = session.user.id
-            let update = ProfileUpdate(currency: selectedCurrency, onboarding_complete: true)
+            let client  = SupabaseManager.shared.client
+            let session = try await client.auth.session
+            let userId  = session.user.id
+            let update  = ProfileUpdate(currency: selectedCurrency, onboarding_complete: true)
 
-            _ = try await SupabaseManager.shared.client
+            _ = try await client
                 .from("profiles")
                 .update(update)
                 .eq("user_id", value: userId)
                 .execute()
 
             submitting = false
-            // No fade on finish — just complete
             onComplete()
         } catch {
             submitting = false
         }
     }
 
-    // Goals selection
     private func toggleGoal(_ id: String) {
         if selectedGoalIDs.contains(id) { selectedGoalIDs.remove(id) }
         else { selectedGoalIDs.insert(id) }
@@ -170,7 +168,6 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Reserve space for progress at top, so content never overlaps
             OnboardProgressBar(progress: progressValue)
                 .padding(.horizontal)
                 .padding(.top, 8)
@@ -178,7 +175,6 @@ struct OnboardingView: View {
             Group {
                 switch step {
                 case .welcome:
-                    // MARK: Slide 1 — Welcome
                     VStack {
                         Spacer(minLength: 12)
 
@@ -200,7 +196,7 @@ struct OnboardingView: View {
                                 .frame(maxWidth: 240)
                                 .padding(.top, 2)
                         }
-                        .offset(y: -16) // lift the block a bit
+                        .offset(y: -16)
 
                         Spacer()
                     }
@@ -219,7 +215,6 @@ struct OnboardingView: View {
                     }
 
                 case .currency:
-                    // MARK: Slide 2 — Currency
                     VStack {
                         Spacer()
 
@@ -253,7 +248,6 @@ struct OnboardingView: View {
                     .opacity(isVisible ? 1 : 0)
 
                 case .goals:
-                    // MARK: Slide 3 — Goals
                     VStack(spacing: 24) {
                         Spacer(minLength: 20)
                         Text("What are your goals?")
@@ -287,7 +281,6 @@ struct OnboardingView: View {
         .background(Color(.systemBackground))
         .ignoresSafeArea(edges: .bottom)
         .onAppear {
-            // fade in initial slide
             isVisible = false
             withAnimation(.easeInOut(duration: fadeDuration)) { isVisible = true }
         }

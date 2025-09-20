@@ -19,13 +19,10 @@ struct PaywallView: View {
 
     // MARK: - Supabase current user id → UUID
     private func currentUserUUID() -> UUID? {
-        // Supabase Swift client’s `User.id` is a UUID in recent versions.
-        // If your version returns a String, this still works because UUID(user.id) will be valid.
         let user = SupabaseManager.shared.client.auth.currentUser
         #if compiler(>=5.9)
         return user?.id
         #else
-        // Fallback if your SDK exposes id as String
         if let idString = (user?.id as? String) { return UUID(uuidString: idString) }
         return nil
         #endif
@@ -255,7 +252,7 @@ struct PaywallView: View {
                                     .multilineTextAlignment(.center)
                             }
                         }
-                        .padding(.top, 4)
+                        .padding(.top, 0)
                     }
                     .frame(maxWidth: 520)
                 }
