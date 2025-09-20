@@ -162,6 +162,15 @@ struct UserProfileView: View {
                         Text("This will permanently delete your account and all associated data. This action cannot be undone.")
                     }
 
+                    HStack(spacing: 12) {
+                        Link("Privacy Policy", destination: URL(string: "https://ghostbill.com/privacy")!)
+                        Text("•")
+                        Link("Terms & Conditions", destination: URL(string: "https://ghostbill.com/terms")!)
+                    }
+                    .font(.caption)
+                    .foregroundColor(textMuted)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.horizontal)
                     Spacer()
 
                     Button {
