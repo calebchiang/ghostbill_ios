@@ -10,8 +10,11 @@ import Supabase
 
 struct ContentView: View {
     @State private var email: String = ""
+    @State private var password: String = ""
+    @State private var showPasswordPrompt: Bool = false
     @State private var showToast: Bool = false
     @State private var toastMessage: String = ""
+    @State private var isErrorToast: Bool = false
     @FocusState private var emailFocused: Bool
     @Environment(\.supabaseClient) private var supabase
 
@@ -56,40 +59,107 @@ struct ContentView: View {
                         .cornerRadius(12)
                         .focused($emailFocused)
 
-                    Button(action: {
-                        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !trimmed.isEmpty else { return }
-                        emailFocused = false
-                        Task {
-                            do {
-                                try await supabase.auth.signInWithOTP(
-                                    email: trimmed,
-                                    redirectTo: URL(string: AppConfig.redirectURLString)
-                                )
-                                await MainActor.run {
-                                    toastMessage = "Check your email and click the link to log in."
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                                        showToast = true
-                                    }
-                                }
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-                                    withAnimation(.easeOut(duration: 0.25)) {
-                                        showToast = false
-                                    }
-                                }
-                            } catch {
-                                print("Failed to send magic link: \(error)")
-                            }
-                        }
-                    }) {
-                        Text("Continue")
-                            .font(.body)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity, minHeight: 44)
+                    if showPasswordPrompt {
+                        SecureField("Password", text: $password, prompt: Text("Password"))
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled(true)
+                            .foregroundColor(Color(red: 0.96, green: 0.96, blue: 0.96))
+                            .padding(.horizontal, 14)
+                            .frame(height: 44)
+                            .background(Color(red: 0.13, green: 0.13, blue: 0.15))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color(red: 0.22, green: 0.22, blue: 0.25), lineWidth: 1)
+                            )
+                            .cornerRadius(12)
                     }
-                    .background(Color(red: 0.31, green: 0.27, blue: 0.90))
-                    .cornerRadius(40)
+
+                    if showPasswordPrompt {
+                        Button(action: {
+                            let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !trimmed.isEmpty else { return }
+                            emailFocused = false
+                            Task {
+                                do {
+                                    _ = try await supabase.auth.signIn(email: trimmed, password: password)
+                                } catch {
+                                    await MainActor.run {
+                                        toastMessage = "Login failed. Please try again."
+                                        isErrorToast = true
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                            showToast = true
+                                        }
+                                    }
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                                        withAnimation(.easeOut(duration: 0.25)) {
+                                            showToast = false
+                                        }
+                                    }
+                                }
+                            }
+                        }) {
+                            Text("Sign In")
+                                .font(.body)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        .background(Color(red: 0.31, green: 0.27, blue: 0.90))
+                        .cornerRadius(40)
+                    } else {
+                        Button(action: {
+                            let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !trimmed.isEmpty else { return }
+                            emailFocused = false
+                            if trimmed.lowercased() == "review@ghostbill.com" {
+                                withAnimation {
+                                    showPasswordPrompt = true
+                                }
+                                return
+                            }
+                            Task {
+                                do {
+                                    try await supabase.auth.signInWithOTP(
+                                        email: trimmed,
+                                        redirectTo: URL(string: AppConfig.redirectURLString)
+                                    )
+                                    await MainActor.run {
+                                        toastMessage = "Check your email and click the link to log in."
+                                        isErrorToast = false
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                            showToast = true
+                                        }
+                                    }
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                                        withAnimation(.easeOut(duration: 0.25)) {
+                                            showToast = false
+                                        }
+                                    }
+                                } catch {
+                                    await MainActor.run {
+                                        toastMessage = "Failed to send magic link."
+                                        isErrorToast = true
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                            showToast = true
+                                        }
+                                    }
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                                        withAnimation(.easeOut(duration: 0.25)) {
+                                            showToast = false
+                                        }
+                                    }
+                                }
+                            }
+                        }) {
+                            Text("Continue")
+                                .font(.body)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        .background(Color(red: 0.31, green: 0.27, blue: 0.90))
+                        .cornerRadius(40)
+                    }
                 }
                 .padding(.horizontal, 32)
                 .frame(maxWidth: 420)
@@ -103,7 +173,7 @@ struct ContentView: View {
                     emailFocused = false
                     Task {
                         do {
-                            let redirect = URL(string: AppConfig.redirectURLString)! // e.g. "ghostbill://auth-callback"
+                            let redirect = URL(string: AppConfig.redirectURLString)!
                             try await supabase.auth.signInWithOAuth(
                                 provider: .google,
                                 redirectTo: redirect,
@@ -112,6 +182,7 @@ struct ContentView: View {
                         } catch {
                             await MainActor.run {
                                 toastMessage = "Google sign-in failed. Please try again."
+                                isErrorToast = true
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
                                     showToast = true
                                 }
@@ -121,7 +192,6 @@ struct ContentView: View {
                                     showToast = false
                                 }
                             }
-                            print("Google OAuth start failed:", error.localizedDescription)
                         }
                     }
                 }) {
@@ -145,7 +215,7 @@ struct ContentView: View {
         .overlay(alignment: .top) {
             if showToast {
                 HStack(spacing: 10) {
-                    Image(systemName: "checkmark.circle.fill")
+                    Image(systemName: isErrorToast ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
                         .foregroundColor(.white)
                         .imageScale(.large)
                     Text(toastMessage)
@@ -157,7 +227,7 @@ struct ContentView: View {
                 .padding(.vertical, 12)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.green.opacity(0.9))
+                        .fill(isErrorToast ? Color.yellow.opacity(0.9) : Color.green.opacity(0.9))
                 )
                 .padding(.top, 40)
                 .padding(.horizontal, 24)
