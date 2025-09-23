@@ -165,7 +165,7 @@ struct UserProfileView: View {
                     HStack(spacing: 12) {
                         Link("Privacy Policy", destination: URL(string: "https://ghostbill.com/privacy")!)
                         Text("•")
-                        Link("Terms & Conditions", destination: URL(string: "https://ghostbill.com/terms")!)
+                        Link("Terms & Conditions", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula")!)
                     }
                     .font(.caption)
                     .foregroundColor(textMuted)
