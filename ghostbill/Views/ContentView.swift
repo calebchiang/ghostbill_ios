@@ -83,18 +83,7 @@ struct ContentView: View {
                                 do {
                                     _ = try await supabase.auth.signIn(email: trimmed, password: password)
                                 } catch {
-                                    await MainActor.run {
-                                        toastMessage = "Login failed. Please try again."
-                                        isErrorToast = true
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                                            showToast = true
-                                        }
-                                    }
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-                                        withAnimation(.easeOut(duration: 0.25)) {
-                                            showToast = false
-                                        }
-                                    }
+                                    await showErrorToast("Login failed. Please try again.")
                                 }
                             }
                         }) {
@@ -112,9 +101,7 @@ struct ContentView: View {
                             guard !trimmed.isEmpty else { return }
                             emailFocused = false
                             if trimmed.lowercased() == "review@ghostbill.com" {
-                                withAnimation {
-                                    showPasswordPrompt = true
-                                }
+                                withAnimation { showPasswordPrompt = true }
                                 return
                             }
                             Task {
@@ -123,31 +110,9 @@ struct ContentView: View {
                                         email: trimmed,
                                         redirectTo: URL(string: AppConfig.redirectURLString)
                                     )
-                                    await MainActor.run {
-                                        toastMessage = "Check your email and click the link to log in."
-                                        isErrorToast = false
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                                            showToast = true
-                                        }
-                                    }
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-                                        withAnimation(.easeOut(duration: 0.25)) {
-                                            showToast = false
-                                        }
-                                    }
+                                    await showSuccessToast("Check your email and click the link to log in.")
                                 } catch {
-                                    await MainActor.run {
-                                        toastMessage = "Failed to send magic link."
-                                        isErrorToast = true
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                                            showToast = true
-                                        }
-                                    }
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-                                        withAnimation(.easeOut(duration: 0.25)) {
-                                            showToast = false
-                                        }
-                                    }
+                                    await showErrorToast("Failed to send magic link.")
                                 }
                             }
                         }) {
@@ -169,46 +134,63 @@ struct ContentView: View {
                     .foregroundColor(Color(red: 0.72, green: 0.72, blue: 0.76))
                     .padding(.top, 18)
 
-                Button(action: {
-                    emailFocused = false
-                    Task {
-                        do {
-                            let redirect = URL(string: AppConfig.redirectURLString)!
-                            try await supabase.auth.signInWithOAuth(
-                                provider: .google,
-                                redirectTo: redirect,
-                                scopes: "openid email profile"
-                            )
-                        } catch {
-                            await MainActor.run {
-                                toastMessage = "Google sign-in failed. Please try again."
-                                isErrorToast = true
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                                    showToast = true
-                                }
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-                                withAnimation(.easeOut(duration: 0.25)) {
-                                    showToast = false
-                                }
+                HStack(spacing: 12) {
+                    // Google Sign In
+                    Button(action: {
+                        emailFocused = false
+                        Task {
+                            do {
+                                let redirect = URL(string: AppConfig.redirectURLString)!
+                                try await supabase.auth.signInWithOAuth(
+                                    provider: .google,
+                                    redirectTo: redirect,
+                                    scopes: "openid email profile"
+                                )
+                            } catch {
+                                await showErrorToast("Google sign-in failed. Please try again.")
                             }
                         }
+                    }) {
+                        Image("google_logo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 28, height: 28)
+                            .padding(8)
+                            .background(Circle().fill(Color.white))
                     }
-                }) {
-                    Image("google_logo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 28, height: 28)
-                        .padding(8)
-                        .background(Circle().fill(Color.white))
+                    .frame(width: 44, height: 44)
+
+                    // Apple Sign In (now uses same OAuth flow)
+                    Button(action: {
+                        emailFocused = false
+                        Task {
+                            do {
+                                let redirect = URL(string: AppConfig.redirectURLString)!
+                                try await supabase.auth.signInWithOAuth(
+                                    provider: .apple,
+                                    redirectTo: redirect,
+                                    scopes: "name email"
+                                )
+                            } catch {
+                                await showErrorToast("Apple sign-in failed. Please try again.")
+                            }
+                        }
+                    }) {
+                        Image("apple_logo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 28, height: 28)
+                            .padding(8)
+                            .background(Circle().fill(Color.white))
+                    }
+                    .frame(width: 44, height: 44)
                 }
-                .frame(width: 44, height: 44)
                 .padding(.top, 6)
 
                 Spacer()
 
                 FloatingGhostView()
-                .padding(.bottom, 140)
+                    .padding(.bottom, 140)
             }
             .padding(.top, 65)
         }
@@ -235,6 +217,31 @@ struct ContentView: View {
                 .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 4)
                 .ignoresSafeArea(.keyboard)
             }
+        }
+    }
+
+    // MARK: - Toast helpers
+    @MainActor
+    private func showErrorToast(_ message: String) {
+        toastMessage = message
+        isErrorToast = true
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+            showToast = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            withAnimation(.easeOut(duration: 0.25)) { showToast = false }
+        }
+    }
+
+    @MainActor
+    private func showSuccessToast(_ message: String) {
+        toastMessage = message
+        isErrorToast = false
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+            showToast = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            withAnimation(.easeOut(duration: 0.25)) { showToast = false }
         }
     }
 }

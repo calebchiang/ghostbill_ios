@@ -68,6 +68,7 @@
 		008316082E7C9BF000B061F2 /* CurrencySymbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencySymbols.swift; sourceTree = "<group>"; };
 		0083160A2E7CCBE700B061F2 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		008316102E7CF42400B061F2 /* Paywall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paywall.swift; sourceTree = "<group>"; };
+		0089789E2E82255F00F38AF6 /* ghostbill.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ghostbill.entitlements; sourceTree = "<group>"; };
 		009469042E73BBDC009F7EC0 /* Untitled.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Untitled.swift; sourceTree = "<group>"; };
 		009469052E73BC00009F7EC0 /* RecurringCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringCalendar.swift; sourceTree = "<group>"; };
 		009469092E73C8BC009F7EC0 /* UpcomingPaymentsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingPaymentsSheet.swift; sourceTree = "<group>"; };
@@ -172,6 +173,7 @@
 		00F5790F2E70AB190041A410 /* ghostbill */ = {
 			isa = PBXGroup;
 			children = (
+				0089789E2E82255F00F38AF6 /* ghostbill.entitlements */,
 				00A9BB602E7DF2830095ACC7 /* PurchaseManager.swift */,
 				008316102E7CF42400B061F2 /* Paywall.swift */,
 				008316082E7C9BF000B061F2 /* CurrencySymbols.swift */,
@@ -551,6 +553,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = ghostbill/ghostbill.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"ghostbill/Preview Content\"";
@@ -583,6 +586,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = ghostbill/ghostbill.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"ghostbill/Preview Content\"";
