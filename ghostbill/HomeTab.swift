@@ -37,6 +37,7 @@ struct HomeTab: View {
     @State private var showingFeedback = false
     @State private var showingPaywall = false
     @State private var showingFilters = false
+    @State private var showingExport = false
 
     @State private var showToast = false
     @State private var toastMessage = ""
@@ -106,14 +107,21 @@ struct HomeTab: View {
 
                             Spacer().frame(width: 14)
 
-                            Button {
-                                showingFilters = true
-                            } label: {
+                            Button { showingFilters = true } label: {
                                 Image(systemName: "line.3.horizontal.decrease.circle")
                                     .font(.title3)
                                     .foregroundColor(textLight)
                             }
                             .accessibilityLabel("Open filters")
+
+                            Spacer().frame(width: 14)
+
+                            Button { showingExport = true } label: {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.title3)
+                                    .foregroundColor(textLight)
+                            }
+                            .accessibilityLabel("Open export")
                         }
                         .padding(.horizontal)
 
@@ -180,16 +188,7 @@ struct HomeTab: View {
                                 if remaining <= 0 {
                                     await MainActor.run {
                                         showingAddSheet = false
-                                        toastMessage = "Free plan limit reached. Upgrade to add more."
-                                        toastIsError = true
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                                            showToast = true
-                                        }
-                                    }
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-                                        withAnimation(.easeOut(duration: 0.25)) {
-                                            showToast = false
-                                        }
+                                        showToast(message: "Free plan limit reached. Upgrade to add more.", isError: true)
                                     }
                                     return
                                 }
@@ -212,16 +211,7 @@ struct HomeTab: View {
                         } catch {
                             await MainActor.run {
                                 showingAddSheet = false
-                                toastMessage = "Failed to save transaction."
-                                toastIsError = true
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                                    showToast = true
-                                }
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-                                withAnimation(.easeOut(duration: 0.25)) {
-                                    showToast = false
-                                }
+                                showToast(message: "Failed to save transaction.", isError: true)
                             }
                         }
                     }
@@ -241,6 +231,14 @@ struct HomeTab: View {
                     Task { await loadTransactionsForFilters() }
                 }
             )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showingExport) {
+            ExportTransactionsView(onSuccess: { message in
+                // Dismissed inside the export view; just show toast here
+                showToast(message: message, isError: false)
+            })
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
         }
@@ -280,7 +278,8 @@ struct HomeTab: View {
                 .padding(.vertical, 12)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(toastIsError ? Color.red.opacity(0.9) : Color.green.opacity(0.9))
+                        // Match ContentView: yellow for error, green for success
+                        .fill(toastIsError ? Color.yellow.opacity(0.9) : Color.green.opacity(0.9))
                 )
                 .padding(.top, 40)
                 .padding(.horizontal, 24)
@@ -297,6 +296,17 @@ struct HomeTab: View {
         let monthsKey = selectedMonths.map { df.string(from: $0) }.sorted().joined(separator: "|")
         let catsKey = selectedCategories.map(\.title).sorted().joined(separator: "|")
         return monthsKey + "§" + catsKey
+    }
+
+    private func showToast(message: String, isError: Bool) {
+        toastMessage = message
+        toastIsError = isError
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+            showToast = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            withAnimation(.easeOut(duration: 0.25)) { showToast = false }
+        }
     }
 
     private func checkPaywall() async {
