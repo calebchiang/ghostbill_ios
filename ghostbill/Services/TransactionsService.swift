@@ -89,7 +89,6 @@ struct TransactionsService {
             let type: String?
         }
 
-        // Capitalize category for DB storage (e.g., "coffee" -> "Coffee")
         let categoryString = category.map { $0.rawValue.capitalized }
 
         let payload = Payload(
@@ -116,7 +115,6 @@ struct TransactionsService {
 
     // MARK: - 🔧 Single-transaction helpers (Edit / Remove Prep)
 
-    /// Fetch a single transaction owned by the user.
     func fetchTransaction(userId: UUID, id: UUID) async throws -> DBTransaction? {
         let rows: [DBTransaction] = try await client
             .from("transactions")
@@ -129,8 +127,6 @@ struct TransactionsService {
         return rows.first
     }
 
-    /// Partial update helper. Only non-nil fields are patched.
-    /// Returns the updated DBTransaction.
     func updateTransaction(
         userId: UUID,
         id: UUID,
@@ -152,7 +148,6 @@ struct TransactionsService {
             enum CodingKeys: String, CodingKey {
                 case amount, currency, date, merchant, category, note
             }
-            // Encode ONLY non-nil keys so we don't overwrite with nulls.
             func encode(to encoder: Encoder) throws {
                 var c = encoder.container(keyedBy: CodingKeys.self)
                 if let amount { try c.encode(amount, forKey: .amount) }
@@ -164,7 +159,6 @@ struct TransactionsService {
             }
         }
 
-        // Capitalize category on update as well
         let patch = Patch(
             amount: amount,
             currency: currency,
@@ -187,8 +181,6 @@ struct TransactionsService {
         return updated
     }
 
-    /// Deletes a transaction owned by the user.
-    /// Returns true if no error was thrown.
     @discardableResult
     func deleteTransaction(userId: UUID, id: UUID) async throws -> Bool {
         _ = try await client
@@ -397,16 +389,6 @@ struct TransactionsService {
 
     // MARK: - Income insert
 
-    /// Insert an income row for a given month.
-    /// - Parameters:
-    ///   - userId: Owner.
-    ///   - amount: Positive number; will be abs()’d for safety.
-    ///   - monthDate: Any date within the target month (used to compute month label and bounds).
-    ///   - timezone: Time zone for month arithmetic and stored date.
-    ///   - note: Optional note; defaults to "Reported income for <Month Year>".
-    ///   - onDate: **Optional explicit day within that month** to store the income on.
-    ///             If `nil`, falls back to the first day of the month (existing behavior).
-    ///             If provided but outside the same month, this throws an error.
     func insertIncomeForMonth(
         userId: UUID,
         amount: Double,
@@ -423,16 +405,12 @@ struct TransactionsService {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = timezone
 
-        // Compute month start/end (end is start of next month)
         let (monthStart, monthEnd) = try monthBounds(for: monthDate, timezone: timezone)
 
-        // Validate/choose the date we will insert on
         let incomeDate: Date = {
             if let explicit = onDate {
-                // Must fall within [monthStart, monthEnd)
                 if explicit < monthStart || explicit >= monthEnd {
-                    // Different month – throw
-                    return Date.distantPast // placeholder; we throw below
+                    return Date.distantPast
                 }
                 return explicit
             } else {
@@ -505,7 +483,6 @@ struct TransactionsService {
         )
     }
 
-    /// All-time top expenses (no date bounds).
     func getTopExpensesAllTime(
         userId: UUID,
         limit: Int = 10
@@ -518,9 +495,6 @@ struct TransactionsService {
         )
     }
 
-    /// Generic top expenses over an optional window.
-    /// - Note: We fetch a small buffer and sort by absolute amount in Swift
-    ///         to ensure correctness when negatives represent spend.
     func getTopExpenses(
         userId: UUID,
         start: Date? = nil,
@@ -547,8 +521,8 @@ struct TransactionsService {
         if let end   { query = query.lt("date", value: end) }
 
         let rows: [Row] = try await query
-            .order("amount", ascending: true)         // most negative first (largest spend)
-            .limit(max(limit * 3, limit))             // fetch buffer, then sort by abs()
+            .order("amount", ascending: true)
+            .limit(max(limit * 3, limit))
             .execute()
             .value
 
@@ -570,9 +544,6 @@ struct TransactionsService {
 
     // MARK: - Top merchants by count (all-time, client-side aggregate)
 
-    /// Returns the top merchants by number of transactions (all-time), excluding income rows
-    /// and excluding empty/null merchant names. Sorted desc by count, limited to `limit`.
-    /// Note: This implementation aggregates client-side to support SDKs without `.group(...)`.
     func getTopMerchantsByCountAllTime(
         userId: UUID,
         limit: Int = 10
@@ -582,7 +553,6 @@ struct TransactionsService {
             let type: String?
         }
 
-        // Pull only the columns we need to keep payload light.
         let rows: [Row] = try await client
             .from("transactions")
             .select("merchant,type")
@@ -591,8 +561,7 @@ struct TransactionsService {
             .execute()
             .value
 
-        // Case-insensitive counting while preserving a display name.
-        var counts: [String: (count: Int, display: String)] = [:]  // key = lowercased merchant
+        var counts: [String: (count: Int, display: String)] = [:]
         for r in rows {
             guard let raw = r.merchant?.trimmingCharacters(in: .whitespacesAndNewlines),
                   !raw.isEmpty else { continue }
@@ -610,6 +579,52 @@ struct TransactionsService {
             .prefix(limit)
 
         return Array(sorted)
+    }
+
+    // MARK: - Filtered fetch
+
+    func fetchTransactions(
+        userId: UUID,
+        months: [Date],
+        categories: Set<ExpenseCategory>? = nil,
+        timezone: TimeZone = .current
+    ) async throws -> [DBTransaction] {
+        if months.isEmpty { return [] }
+
+        let bounds: [(start: Date, end: Date)] = try months.map { try monthBounds(for: $0, timezone: timezone) }
+
+        let results: [[DBTransaction]] = try await withThrowingTaskGroup(of: (Int, [DBTransaction]).self) { group in
+            for (idx, b) in bounds.enumerated() {
+                group.addTask {
+                    var q = self.client
+                        .from("transactions")
+                        .select()
+                        .eq("user_id", value: userId)
+                        .gte("date", value: b.start)
+                        .lt("date", value: b.end)
+                        .order("date", ascending: false)
+
+                    let rows: [DBTransaction] = try await q.execute().value
+                    return (idx, rows)
+                }
+            }
+            var tmp = Array(repeating: [DBTransaction](), count: bounds.count)
+            for try await (idx, rows) in group { tmp[idx] = rows }
+            return tmp
+        }
+
+        var merged = results.flatMap { $0 }
+
+        if let categories, !categories.isEmpty {
+            merged = merged.filter { tx in
+                guard let raw = tx.category?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+                      let cat = ExpenseCategory(rawValue: raw) else { return false }
+                return categories.contains(cat)
+            }
+        }
+
+        merged.sort { $0.date > $1.date }
+        return merged
     }
 }
 

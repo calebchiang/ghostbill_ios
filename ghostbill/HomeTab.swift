@@ -26,14 +26,17 @@ struct HomeTab: View {
 
     @EnvironmentObject var session: SessionStore
     @State private var transactions: [DBTransaction] = []
+    @State private var overviewTransactions: [DBTransaction] = []
     @State private var loading = true
-    @State private var selectedCategory: ExpenseCategory? = nil
+    @State private var selectedCategories: Set<ExpenseCategory> = []
+    @State private var selectedMonths: Set<Date> = []
 
     @State private var navPath: [DBTransaction] = []
     @State private var showingAddSheet = false
     @State private var showingProfile = false
     @State private var showingFeedback = false
     @State private var showingPaywall = false
+    @State private var showingFilters = false
 
     @State private var showToast = false
     @State private var toastMessage = ""
@@ -48,8 +51,8 @@ struct HomeTab: View {
     ]
 
     private var visibleTransactions: [DBTransaction] {
-        guard let cat = selectedCategory else { return transactions }
-        return transactions.filter { $0.categoryEnum == cat }
+        if selectedCategories.isEmpty { return transactions }
+        return transactions.filter { selectedCategories.contains($0.categoryEnum) }
     }
 
     var body: some View {
@@ -83,7 +86,7 @@ struct HomeTab: View {
                         }
                         .padding(.horizontal)
 
-                        Overview(transactions: transactions)
+                        Overview(transactions: overviewTransactions)
                             .padding(.horizontal)
                             .padding(.top, 8)
 
@@ -103,21 +106,14 @@ struct HomeTab: View {
 
                             Spacer().frame(width: 14)
 
-                            Menu {
-                                Button("All") { selectedCategory = nil }
-                                Divider()
-                                ForEach(categories, id: \.self) { cat in
-                                    Button(cat.title) { selectedCategory = cat }
-                                }
-                                if selectedCategory != nil {
-                                    Divider()
-                                    Button("Clear filter", role: .destructive) { selectedCategory = nil }
-                                }
+                            Button {
+                                showingFilters = true
                             } label: {
                                 Image(systemName: "line.3.horizontal.decrease.circle")
                                     .font(.title3)
                                     .foregroundColor(textLight)
                             }
+                            .accessibilityLabel("Open filters")
                         }
                         .padding(.horizontal)
 
@@ -129,7 +125,7 @@ struct HomeTab: View {
                                 transactions: visibleTransactions,
                                 onSelect: { tx in navPath.append(tx) }
                             )
-                            .id(selectedCategory?.title ?? "all")
+                            .id(listIdentity)
                             .padding(.horizontal)
                         }
 
@@ -148,9 +144,11 @@ struct HomeTab: View {
                             transactions.append(updated)
                         }
                         transactions.sort { $0.date > $1.date }
+                        Task { await loadOverviewTransactionsCurrentMonth() }
                     },
                     onDeleted: { id in
                         transactions.removeAll { $0.id == id }
+                        Task { await loadOverviewTransactionsCurrentMonth() }
                     }
                 )
                 .navigationBarTitleDisplayMode(.inline)
@@ -209,7 +207,8 @@ struct HomeTab: View {
                             )
 
                             await MainActor.run { showingAddSheet = false }
-                            await loadTransactions()
+                            await loadOverviewTransactionsCurrentMonth()
+                            await loadTransactionsForFilters()
                         } catch {
                             await MainActor.run {
                                 showingAddSheet = false
@@ -230,6 +229,21 @@ struct HomeTab: View {
                 onCancel: { showingAddSheet = false }
             )
         }
+        .sheet(isPresented: $showingFilters) {
+            TransactionsFilterView(
+                categories: categories,
+                initialSelectedCategories: selectedCategories,
+                initialSelectedMonths: selectedMonths,
+                onApply: { newCategories, newMonths in
+                    selectedCategories = newCategories
+                    selectedMonths = newMonths
+                    showingFilters = false
+                    Task { await loadTransactionsForFilters() }
+                }
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
         .fullScreenCover(isPresented: $showingPaywall) {
             PaywallView {
                 Task {
@@ -245,6 +259,7 @@ struct HomeTab: View {
             }
         }
         .task(id: reloadKey) {
+            await loadOverviewTransactionsCurrentMonth()
             await loadTransactions()
         }
         .task {
@@ -274,6 +289,14 @@ struct HomeTab: View {
                 .ignoresSafeArea(.keyboard)
             }
         }
+    }
+
+    private var listIdentity: String {
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM"
+        let monthsKey = selectedMonths.map { df.string(from: $0) }.sorted().joined(separator: "|")
+        let catsKey = selectedCategories.map(\.title).sorted().joined(separator: "|")
+        return monthsKey + "§" + catsKey
     }
 
     private func checkPaywall() async {
@@ -307,6 +330,65 @@ struct HomeTab: View {
             self.transactions = []
         }
         loading = false
+    }
+
+    private func loadOverviewTransactionsCurrentMonth() async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+
+            var cal = Calendar(identifier: .gregorian)
+            cal.timeZone = .current
+            guard let start = cal.date(from: cal.dateComponents([.year, .month], from: Date())),
+                  let end = cal.date(byAdding: .month, value: 1, to: start) else {
+                self.overviewTransactions = []
+                return
+            }
+
+            let fetched: [DBTransaction] = try await SupabaseManager.shared.client
+                .from("transactions")
+                .select()
+                .eq("user_id", value: userId)
+                .gte("date", value: start)
+                .lt("date", value: end)
+                .order("date", ascending: false)
+                .execute()
+                .value
+
+            self.overviewTransactions = fetched
+        } catch {
+            self.overviewTransactions = []
+        }
+    }
+
+    private func loadTransactionsForFilters() async {
+        loading = true
+        defer { loading = false }
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+
+            if selectedMonths.isEmpty {
+                let fetched: [DBTransaction] = try await SupabaseManager.shared.client
+                    .from("transactions")
+                    .select()
+                    .eq("user_id", value: userId)
+                    .order("date", ascending: false)
+                    .limit(100)
+                    .execute()
+                    .value
+                self.transactions = fetched
+            } else {
+                let fetched = try await TransactionsService.shared.fetchTransactions(
+                    userId: userId,
+                    months: Array(selectedMonths),
+                    categories: selectedCategories
+                )
+                self.transactions = fetched
+            }
+        } catch {
+            self.transactions = []
+        }
     }
 
     private func currentMonthTitle() -> String {

@@ -25,7 +25,7 @@ struct RootView: View {
             if !session.isAuthenticated {
                 ContentView()
             } else if loading {
-                ProgressView("Loading...")
+                LoadingView()
             } else if let profile = profile, !profile.onboarding_complete {
                 OnboardingView {
                     Task { await loadProfile() }
@@ -34,7 +34,7 @@ struct RootView: View {
                 MainTabView()
             }
         }
-        .preferredColorScheme(.dark) 
+        .preferredColorScheme(.dark)
         .task(id: session.isAuthenticated) {
             if session.isAuthenticated {
                 loading = true
