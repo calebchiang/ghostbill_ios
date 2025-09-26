@@ -51,6 +51,9 @@ struct ReviewRecurringTransactionView: View {
         return fire <= Date()
     }
 
+    private enum Field { case merchant, amount }
+    @FocusState private var focusedField: Field?
+
     var body: some View {
         NavigationView {
             ZStack {
@@ -58,11 +61,13 @@ struct ReviewRecurringTransactionView: View {
                     Section(header: Text("Merchant")) {
                         TextField("e.g. Netflix, Rent", text: $merchantName)
                             .textInputAutocapitalization(.words)
+                            .focused($focusedField, equals: .merchant)
                     }
 
                     Section(header: Text("Amount")) {
                         TextField("e.g. 9.99", text: $amountText)
                             .keyboardType(.decimalPad)
+                            .focused($focusedField, equals: .amount)
                     }
 
                     Section(header: Text("Category")) {
@@ -146,6 +151,7 @@ struct ReviewRecurringTransactionView: View {
                         .disabled(isSaving || (notifyEnabled && reminderInPast))
                     }
                 }
+                .scrollDismissesKeyboard(.interactively)
 
                 if showToast {
                     VStack {
@@ -175,6 +181,7 @@ struct ReviewRecurringTransactionView: View {
                     .animation(.spring(response: 0.3, dampingFraction: 0.9), value: showToast)
                 }
             }
+            .simultaneousGesture(TapGesture().onEnded { focusedField = nil })
         }
     }
 

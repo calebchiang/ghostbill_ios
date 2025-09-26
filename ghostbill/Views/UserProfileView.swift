@@ -17,8 +17,13 @@ struct UserProfileView: View {
     @State private var planName: String = "Loading…"
     @State private var showPaywall: Bool = false
     @State private var showDeleteAlert: Bool = false
+    @State private var showingFeedback: Bool = false
 
     @State private var isFreeUser: Bool = true
+
+    @State private var showToast = false
+    @State private var toastMessage = ""
+    @State private var toastIsError = false
 
     private let bg        = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let cardBG    = Color(red: 0.14, green: 0.14, blue: 0.17)
@@ -187,18 +192,70 @@ struct UserProfileView: View {
                     .padding(.horizontal)
                 }
                 .padding(.top, 32)
+
+                if showToast {
+                    VStack {
+                        HStack(spacing: 10) {
+                            Image(systemName: toastIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                                .foregroundColor(.white)
+                                .imageScale(.large)
+                            Text(toastMessage)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(toastIsError ? Color.yellow.opacity(0.9) : Color.green.opacity(0.9))
+                        )
+                        .padding(.top, 40)
+                        .padding(.horizontal, 24)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 4)
+                        .ignoresSafeArea(.keyboard)
+
+                        Spacer()
+                    }
+                    .animation(.spring(response: 0.3, dampingFraction: 0.9), value: showToast)
+                }
             }
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showingFeedback = true
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                    }
+                    .accessibilityLabel("Open feedback")
+                }
+            }
         }
         .task {
             await loadProfile()
+        }
+        .sheet(isPresented: $showingFeedback) {
+            FeedbackView(onSaved: { msg in
+                showToast(message: msg, isError: false)
+            })
         }
         .fullScreenCover(isPresented: $showPaywall) {
             PaywallView {
                 showPaywall = false
                 Task { await loadProfile() }
             }
+        }
+    }
+
+    private func showToast(message: String, isError: Bool) {
+        toastMessage = message
+        toastIsError = isError
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { showToast = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            withAnimation(.easeOut(duration: 0.25)) { showToast = false }
         }
     }
 

@@ -20,11 +20,9 @@ enum TransactionType: String, CaseIterable, Hashable {
 }
 
 struct AddTransactionView: View {
-    // Callbacks
     var onSave: (_ merchant: String?, _ amount: String?, _ date: Date?, _ type: TransactionType, _ category: ExpenseCategory, _ notes: String?) -> Void
     var onCancel: () -> Void
 
-    // State
     @State private var merchant: String
     @State private var amount: String
     @State private var date: Date
@@ -32,13 +30,15 @@ struct AddTransactionView: View {
     @State private var category: ExpenseCategory
     @State private var notes: String
 
-    // Palette (match ReviewTransactionView)
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
     private let textMuted = Color(red: 0.80, green: 0.80, blue: 0.85)
     private let indigo = Color(red: 0.31, green: 0.27, blue: 0.90)
 
-    // Initializer (optional prefill support)
+    private enum Field { case merchant, amount, notes }
+    @FocusState private var focusedField: Field?
+    private let notesAnchorID = "notes_anchor"
+
     init(
         initialMerchant: String? = nil,
         initialAmount: String? = nil,
@@ -57,7 +57,6 @@ struct AddTransactionView: View {
         _date     = State(initialValue: initialDate ?? Date())
         _type     = State(initialValue: initialType)
 
-        // If the initial type is income, force initial category to .income
         let resolvedCategory: ExpenseCategory = (initialType == .income) ? .income : initialCategory
         _category = State(initialValue: resolvedCategory)
 
@@ -66,154 +65,166 @@ struct AddTransactionView: View {
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Add transaction")
-                        .font(.title3).bold()
-                        .foregroundColor(textLight)
+            ZStack {
+                bg.ignoresSafeArea()
 
-                    // Transaction Type (tab-style) — ABOVE Merchant
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Transaction Type")
-                            .foregroundColor(textMuted)
-                            .font(.footnote)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Add transaction")
+                                    .font(.title3).bold()
+                                    .foregroundColor(textLight)
 
-                        HStack(spacing: 8) {
-                            ForEach(TransactionType.allCases, id: \.self) { t in
-                                Button {
-                                    withAnimation(.easeInOut(duration: 0.15)) {
-                                        type = t
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Transaction Type")
+                                        .foregroundColor(textMuted)
+                                        .font(.footnote)
+
+                                    HStack(spacing: 8) {
+                                        ForEach(TransactionType.allCases, id: \.self) { t in
+                                            Button {
+                                                withAnimation(.easeInOut(duration: 0.15)) {
+                                                    type = t
+                                                }
+                                            } label: {
+                                                Text(t.displayName)
+                                                    .font(.subheadline.weight(.semibold))
+                                                    .padding(.vertical, 10)
+                                                    .padding(.horizontal, 14)
+                                                    .frame(maxWidth: .infinity)
+                                                    .background(
+                                                        RoundedRectangle(cornerRadius: 10)
+                                                            .fill(type == t ? indigo : Color.black.opacity(0.25))
+                                                    )
+                                                    .foregroundColor(type == t ? .white : textLight)
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: 10)
+                                                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                                                    )
+                                            }
+                                            .accessibilityAddTraits(type == t ? .isSelected : [])
+                                        }
                                     }
-                                } label: {
-                                    Text(t.displayName)
-                                        .font(.subheadline.weight(.semibold))
-                                        .padding(.vertical, 10)
-                                        .padding(.horizontal, 14)
-                                        .frame(maxWidth: .infinity)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 10) // subtle rounding
-                                                .fill(type == t ? indigo : Color.black.opacity(0.25))
-                                        )
-                                        .foregroundColor(type == t ? .white : textLight)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                                        )
                                 }
-                                .accessibilityAddTraits(type == t ? .isSelected : [])
+
+                                if type == .expense {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("Merchant").foregroundColor(textMuted).font(.footnote)
+                                        TextField("Enter merchant", text: $merchant)
+                                            .textInputAutocapitalization(.words)
+                                            .disableAutocorrection(true)
+                                            .padding(12)
+                                            .background(Color.black.opacity(0.25))
+                                            .cornerRadius(12)
+                                            .foregroundColor(textLight)
+                                            .focused($focusedField, equals: .merchant)
+                                    }
+                                }
+
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Amount").foregroundColor(textMuted).font(.footnote)
+                                    TextField("0.00", text: $amount)
+                                        .keyboardType(.decimalPad)
+                                        .padding(12)
+                                        .background(Color.black.opacity(0.25))
+                                        .cornerRadius(12)
+                                        .foregroundColor(textLight)
+                                        .focused($focusedField, equals: .amount)
+                                }
+
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Category").foregroundColor(textMuted).font(.footnote)
+                                    Picker("Select category", selection: $category) {
+                                        ForEach(ExpenseCategory.allCases, id: \.self) { c in
+                                            Text(c.displayName).tag(c)
+                                        }
+                                    }
+                                    .pickerStyle(MenuPickerStyle())
+                                    .padding(12)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color.black.opacity(0.25))
+                                    .cornerRadius(12)
+                                    .foregroundColor(textLight)
+                                    .disabled(type == .income)
+                                    .opacity(type == .income ? 0.7 : 1.0)
+                                }
+
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Date").foregroundColor(textMuted).font(.footnote)
+                                    DatePicker("", selection: $date, displayedComponents: .date)
+                                        .labelsHidden()
+                                        .padding(12)
+                                        .background(Color.black.opacity(0.25))
+                                        .cornerRadius(12)
+                                        .colorScheme(.dark)
+                                }
+
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Notes").foregroundColor(textMuted).font(.footnote)
+                                    TextField("Optional", text: $notes, axis: .vertical)
+                                        .lineLimit(3, reservesSpace: true)
+                                        .padding(12)
+                                        .background(Color.black.opacity(0.25))
+                                        .cornerRadius(12)
+                                        .foregroundColor(textLight)
+                                        .focused($focusedField, equals: .notes)
+                                        .id(notesAnchorID)
+                                }
+                            }
+
+                            Spacer(minLength: 8)
+
+                            VStack(spacing: 10) {
+                                Button {
+                                    let merchantParam: String? = (type == .income)
+                                        ? "Income"
+                                        : (merchant.isEmpty ? nil : merchant)
+
+                                    let finalCategory: ExpenseCategory = (type == .income) ? .income : category
+
+                                    onSave(
+                                        merchantParam,
+                                        amount.isEmpty ? nil : amount,
+                                        date,
+                                        type,
+                                        finalCategory,
+                                        notes.isEmpty ? nil : notes
+                                    )
+                                } label: {
+                                    Text("Save Transaction")
+                                        .fontWeight(.semibold)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 14)
+                                        .background(indigo)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(14)
+                                }
+
+                                Button {
+                                    onCancel()
+                                } label: {
+                                    Text("Cancel")
+                                        .font(.subheadline)
+                                        .foregroundColor(textMuted)
+                                }
+                            }
+                        }
+                        .padding(16)
+                    }
+                    .onChange(of: focusedField) { newValue in
+                        if newValue == .notes {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    proxy.scrollTo(notesAnchorID, anchor: .bottom)
+                                }
                             }
                         }
                     }
-
-                    // Merchant — hidden for income (we'll default to "Income" on save)
-                    if type == .expense {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Merchant").foregroundColor(textMuted).font(.footnote)
-                            TextField("Enter merchant", text: $merchant)
-                                .textInputAutocapitalization(.words)
-                                .disableAutocorrection(true)
-                                .padding(12)
-                                .background(Color.black.opacity(0.25))
-                                .cornerRadius(12)
-                                .foregroundColor(textLight)
-                        }
-                    }
-
-                    // Amount
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Amount").foregroundColor(textMuted).font(.footnote)
-                        TextField("0.00", text: $amount)
-                            .keyboardType(.decimalPad)
-                            .padding(12)
-                            .background(Color.black.opacity(0.25))
-                            .cornerRadius(12)
-                            .foregroundColor(textLight)
-                    }
-
-                    // Category — auto-select Income for income type
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Category").foregroundColor(textMuted).font(.footnote)
-                        Picker("Select category", selection: $category) {
-                            ForEach(ExpenseCategory.allCases, id: \.self) { c in
-                                Text(c.displayName).tag(c)
-                            }
-                        }
-                        .pickerStyle(MenuPickerStyle())
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.black.opacity(0.25))
-                        .cornerRadius(12)
-                        .foregroundColor(textLight)
-                        .disabled(type == .income) // lock when income to avoid accidental change
-                        .opacity(type == .income ? 0.7 : 1.0)
-                    }
-
-                    // Date
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Date").foregroundColor(textMuted).font(.footnote)
-                        DatePicker("", selection: $date, displayedComponents: .date)
-                            .labelsHidden()
-                            .padding(12)
-                            .background(Color.black.opacity(0.25))
-                            .cornerRadius(12)
-                            .colorScheme(.dark)
-                    }
-
-                    // Notes
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Notes").foregroundColor(textMuted).font(.footnote)
-                        TextField("Optional", text: $notes, axis: .vertical)
-                            .lineLimit(3, reservesSpace: true)
-                            .padding(12)
-                            .background(Color.black.opacity(0.25))
-                            .cornerRadius(12)
-                            .foregroundColor(textLight)
-                    }
                 }
-
-                Spacer(minLength: 8)
-
-                // Actions
-                VStack(spacing: 10) {
-                    Button {
-                        let merchantParam: String? = (type == .income)
-                            ? "Income"
-                            : (merchant.isEmpty ? nil : merchant)
-
-                        // Ensure category is Income when type is income
-                        let finalCategory: ExpenseCategory = (type == .income) ? .income : category
-
-                        onSave(
-                            merchantParam,
-                            amount.isEmpty ? nil : amount,
-                            date,
-                            type,
-                            finalCategory,
-                            notes.isEmpty ? nil : notes
-                        )
-                    } label: {
-                        Text("Save Transaction")
-                            .fontWeight(.semibold)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(indigo)
-                            .foregroundColor(.white)
-                            .cornerRadius(14)
-                    }
-
-                    Button {
-                        onCancel()
-                    } label: {
-                        Text("Cancel")
-                            .font(.subheadline)
-                            .foregroundColor(textMuted)
-                    }
-                }
+                .scrollDismissesKeyboard(.immediately)
             }
-            .padding(16)
-            .background(bg.ignoresSafeArea())
             .navigationBarHidden(true)
-            // Reactively force category to .income when switching to income
             .onChange(of: type) { newValue in
                 if newValue == .income {
                     category = .income
@@ -224,7 +235,6 @@ struct AddTransactionView: View {
     }
 }
 
-// Pretty names for categories
 private extension ExpenseCategory {
     var displayName: String {
         switch self {
@@ -238,7 +248,7 @@ private extension ExpenseCategory {
         case .housing:       return "Housing"
         case .entertainment: return "Entertainment"
         case .travel:        return "Travel"
-        case .personal:     return "Personal"
+        case .personal:      return "Personal"
         case .income:        return "Income"
         case .other:         return "Other"
         }

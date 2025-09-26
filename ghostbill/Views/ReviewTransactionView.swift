@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct ReviewTransactionView: View {
-    // Callbacks
     var onSave: (_ merchant: String?, _ amount: String?, _ date: Date?, _ category: ExpenseCategory?, _ notes: String?) -> Void
     var onScanAgain: () -> Void
     var onCancel: () -> Void
@@ -24,7 +23,10 @@ struct ReviewTransactionView: View {
     private let textMuted = Color(red: 0.80, green: 0.80, blue: 0.85)
     private let indigo = Color(red: 0.31, green: 0.27, blue: 0.90)
 
-    // Custom initializer to prefill values
+    private enum Field { case merchant, amount, notes }
+    @FocusState private var focusedField: Field?
+    private let notesAnchorID = "notes_anchor"
+
     init(
         initialMerchant: String?,
         initialAmount: String?,
@@ -47,113 +49,134 @@ struct ReviewTransactionView: View {
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Review Transaction")
-                        .font(.title3).bold()
-                        .foregroundColor(textLight)
+            ZStack {
+                bg.ignoresSafeArea()
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Merchant").foregroundColor(textMuted).font(.footnote)
-                        TextField("Enter merchant", text: $merchant)
-                            .textInputAutocapitalization(.words)
-                            .disableAutocorrection(true)
-                            .padding(12)
-                            .background(Color.black.opacity(0.25))
-                            .cornerRadius(12)
-                            .foregroundColor(textLight)
-                    }
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Review Transaction")
+                                    .font(.title3).bold()
+                                    .foregroundColor(textLight)
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Amount").foregroundColor(textMuted).font(.footnote)
-                        TextField("0.00", text: $amount)
-                            .keyboardType(.decimalPad)
-                            .padding(12)
-                            .background(Color.black.opacity(0.25))
-                            .cornerRadius(12)
-                            .foregroundColor(textLight)
-                    }
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Merchant").foregroundColor(textMuted).font(.footnote)
+                                    TextField("Enter merchant", text: $merchant)
+                                        .textInputAutocapitalization(.words)
+                                        .disableAutocorrection(true)
+                                        .padding(12)
+                                        .background(Color.black.opacity(0.25))
+                                        .cornerRadius(12)
+                                        .foregroundColor(textLight)
+                                        .focused($focusedField, equals: .merchant)
+                                }
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Date").foregroundColor(textMuted).font(.footnote)
-                        DatePicker("", selection: $date, displayedComponents: .date)
-                            .labelsHidden()
-                            .padding(12)
-                            .background(Color.black.opacity(0.25))
-                            .cornerRadius(12)
-                            .colorScheme(.dark)
-                    }
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Amount").foregroundColor(textMuted).font(.footnote)
+                                    TextField("0.00", text: $amount)
+                                        .keyboardType(.decimalPad)
+                                        .padding(12)
+                                        .background(Color.black.opacity(0.25))
+                                        .cornerRadius(12)
+                                        .foregroundColor(textLight)
+                                        .focused($focusedField, equals: .amount)
+                                }
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Category").foregroundColor(textMuted).font(.footnote)
-                        Picker("Select category", selection: $category) {
-                            ForEach(ExpenseCategory.allCases, id: \.self) { c in
-                                Text(c.displayName).tag(c)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Date").foregroundColor(textMuted).font(.footnote)
+                                    DatePicker("", selection: $date, displayedComponents: .date)
+                                        .labelsHidden()
+                                        .padding(12)
+                                        .background(Color.black.opacity(0.25))
+                                        .cornerRadius(12)
+                                        .colorScheme(.dark)
+                                }
+
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Category").foregroundColor(textMuted).font(.footnote)
+                                    Picker("Select category", selection: $category) {
+                                        ForEach(ExpenseCategory.allCases, id: \.self) { c in
+                                            Text(c.displayName).tag(c)
+                                        }
+                                    }
+                                    .pickerStyle(MenuPickerStyle())
+                                    .padding(12)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color.black.opacity(0.25))
+                                    .cornerRadius(12)
+                                    .foregroundColor(textLight)
+                                }
+
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Notes").foregroundColor(textMuted).font(.footnote)
+                                    TextField("Optional", text: $notes, axis: .vertical)
+                                        .lineLimit(3, reservesSpace: true)
+                                        .padding(12)
+                                        .background(Color.black.opacity(0.25))
+                                        .cornerRadius(12)
+                                        .foregroundColor(textLight)
+                                        .focused($focusedField, equals: .notes)
+                                        .id(notesAnchorID)
+                                }
+                            }
+
+                            Spacer(minLength: 8)
+
+                            VStack(spacing: 10) {
+                                Button {
+                                    onSave(
+                                        merchant.isEmpty ? nil : merchant,
+                                        amount.isEmpty ? nil : amount,
+                                        date,
+                                        category,
+                                        notes.isEmpty ? nil : notes
+                                    )
+                                } label: {
+                                    Text("Save Transaction")
+                                        .fontWeight(.semibold)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 14)
+                                        .background(indigo)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(14)
+                                }
+
+                                Button {
+                                    onScanAgain()
+                                } label: {
+                                    Text("Scan Again")
+                                        .fontWeight(.semibold)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 14)
+                                        .background(Color.black.opacity(0.35))
+                                        .foregroundColor(textLight)
+                                        .cornerRadius(14)
+                                }
+
+                                Button {
+                                    onCancel()
+                                } label: {
+                                    Text("Cancel")
+                                        .font(.subheadline)
+                                        .foregroundColor(textMuted)
+                                }
                             }
                         }
-                        .pickerStyle(MenuPickerStyle())
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.black.opacity(0.25))
-                        .cornerRadius(12)
-                        .foregroundColor(textLight)
+                        .padding(16)
                     }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Notes").foregroundColor(textMuted).font(.footnote)
-                        TextField("Optional", text: $notes, axis: .vertical)
-                            .lineLimit(3, reservesSpace: true)
-                            .padding(12)
-                            .background(Color.black.opacity(0.25))
-                            .cornerRadius(12)
-                            .foregroundColor(textLight)
+                    .onChange(of: focusedField) { newValue in
+                        if newValue == .notes {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    proxy.scrollTo(notesAnchorID, anchor: .bottom)
+                                }
+                            }
+                        }
                     }
                 }
-
-                Spacer(minLength: 8)
-
-                VStack(spacing: 10) {
-                    Button {
-                        onSave(
-                            merchant.isEmpty ? nil : merchant,
-                            amount.isEmpty ? nil : amount,
-                            date,
-                            category,
-                            notes.isEmpty ? nil : notes
-                        )
-                    } label: {
-                        Text("Save Transaction")
-                            .fontWeight(.semibold)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(indigo)
-                            .foregroundColor(.white)
-                            .cornerRadius(14)
-                    }
-
-                    Button {
-                        onScanAgain()
-                    } label: {
-                        Text("Scan Again")
-                            .fontWeight(.semibold)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(Color.black.opacity(0.35))
-                            .foregroundColor(textLight)
-                            .cornerRadius(14)
-                    }
-
-                    Button {
-                        onCancel()
-                    } label: {
-                        Text("Cancel")
-                            .font(.subheadline)
-                            .foregroundColor(textMuted)
-                    }
-                }
+                .scrollDismissesKeyboard(.immediately)
             }
-            .padding(16)
-            .background(bg.ignoresSafeArea())
             .navigationBarHidden(true)
         }
         .preferredColorScheme(.dark)
@@ -174,7 +197,7 @@ private extension ExpenseCategory {
         case .housing:       return "Housing"
         case .entertainment: return "Entertainment"
         case .travel:        return "Travel"
-        case .personal:     return "Personal"
+        case .personal:      return "Personal"
         case .income:        return "Income"
         case .other:         return "Other"
         }

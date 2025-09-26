@@ -6,14 +6,17 @@
 //
 
 import SwiftUI
+import Supabase
 
 struct FeedbackView: View {
     @Environment(\.dismiss) private var dismiss
 
+    var onSaved: (String) -> Void
+
     @State private var message: String = ""
     @State private var email: String = ""
+    @State private var isSaving = false
 
-    // Match app styling
     private let bg        = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let cardBG    = Color(red: 0.14, green: 0.14, blue: 0.17)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
@@ -25,8 +28,6 @@ struct FeedbackView: View {
                 bg.ignoresSafeArea()
 
                 VStack(spacing: 16) {
-
-                    // Intro / description
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Questions or feedback?")
                             .font(.headline)
@@ -47,7 +48,6 @@ struct FeedbackView: View {
                     )
                     .padding(.horizontal)
 
-                    // Feedback text box
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Your feedback or question")
                             .font(.subheadline)
@@ -76,7 +76,6 @@ struct FeedbackView: View {
                     }
                     .padding(.horizontal)
 
-                    // Optional email
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Email (optional)")
                             .font(.subheadline)
@@ -100,7 +99,6 @@ struct FeedbackView: View {
 
                     Spacer()
 
-                    // Buttons
                     HStack(spacing: 12) {
                         Button(role: .cancel) {
                             dismiss()
@@ -112,17 +110,15 @@ struct FeedbackView: View {
                         .tint(.gray)
 
                         Button {
-                            // Save logic to be implemented later
-                            dismiss()
+                            Task { await save() }
                         } label: {
-                            Text("Save")
+                            Text(isSaving ? "Saving…" : "Save")
                                 .fontWeight(.semibold)
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.blue)
-                        // If you want to enforce non-empty feedback, uncomment:
-                        // .disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(isSaving || message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                     .padding(.horizontal)
                     .padding(.bottom, 12)
@@ -133,4 +129,28 @@ struct FeedbackView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
     }
+
+    private func save() async {
+        guard !isSaving else { return }
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            let userId = session.user.id
+            _ = try await FeedbackService.shared.insertFeedback(
+                userId: userId,
+                message: trimmed,
+                email: email.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+            await MainActor.run {
+                onSaved("Thanks for helping us improve GhostBill :)")
+                dismiss()
+            }
+        } catch {
+            await MainActor.run { dismiss() }
+        }
+    }
 }
+

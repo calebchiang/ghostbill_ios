@@ -34,7 +34,6 @@ struct HomeTab: View {
     @State private var navPath: [DBTransaction] = []
     @State private var showingAddSheet = false
     @State private var showingProfile = false
-    @State private var showingFeedback = false
     @State private var showingPaywall = false
     @State private var showingFilters = false
     @State private var showingExport = false
@@ -70,13 +69,6 @@ struct HomeTab: View {
                                 .foregroundColor(textLight)
                             Spacer()
                             HStack(spacing: 12) {
-                                Button { showingFeedback = true } label: {
-                                    Image(systemName: "questionmark.circle")
-                                        .font(.title2)
-                                        .foregroundColor(textLight)
-                                }
-                                .accessibilityLabel("Open feedback")
-
                                 Button { showingProfile = true } label: {
                                     Image(systemName: "person.crop.circle")
                                         .font(.title2)
@@ -162,9 +154,6 @@ struct HomeTab: View {
                 .navigationBarTitleDisplayMode(.inline)
             }
         }
-        .sheet(isPresented: $showingFeedback) {
-            FeedbackView()
-        }
         .sheet(isPresented: $showingProfile) {
             UserProfileView()
                 .environmentObject(session)
@@ -236,7 +225,6 @@ struct HomeTab: View {
         }
         .sheet(isPresented: $showingExport) {
             ExportTransactionsView(onSuccess: { message in
-                // Dismissed inside the export view; just show toast here
                 showToast(message: message, isError: false)
             })
             .presentationDetents([.medium])
@@ -278,7 +266,6 @@ struct HomeTab: View {
                 .padding(.vertical, 12)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        // Match ContentView: yellow for error, green for success
                         .fill(toastIsError ? Color.yellow.opacity(0.9) : Color.green.opacity(0.9))
                 )
                 .padding(.top, 40)
