@@ -18,10 +18,19 @@ struct Overview: View {
     let transactions: [DBTransaction]
 
     @State private var currencySymbol: String = "$"
+    @State private var statusText: String?                 // full message for popup
+    @State private var statusIconName: String?             // happy_ghost / nervous_ghost / dead_ghost
+    @State private var statusLabel: String?                // "Happy", "Nervous", "Critical"
+    @State private var statusLabelColor: Color = .green    // Health: label color
+    @State private var statusProgress: Double = 0          // stage-based fill: 0...1
+    @State private var showStatusAlert: Bool = false
+    @State private var statusTitleOverride: String? = nil  // custom popup title for first-month/empty data
 
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
     private let textMuted = Color(red: 0.80, green: 0.80, blue: 0.85)
+
+    private let indigo = Color(red: 0.31, green: 0.27, blue: 0.90)
 
     var body: some View {
         let monthName = formattedMonthTitle()
@@ -30,54 +39,165 @@ struct Overview: View {
 
         let colors: [Color] = slices.map { colorForCategoryString($0.category) }
 
-        VStack(alignment: .leading, spacing: 12) {
-            ZStack {
-                DonutChart(
-                    slices: slices.map { ($0.category, $0.total) },
-                    colors: colors,
-                    thickness: 30
-                )
-                .frame(height: 220)
+        ZStack {
+            VStack(alignment: .leading, spacing: 12) {
 
-                VStack(spacing: 4) {
-                    (
-                        Text(monthName).fontWeight(.bold)
-                        + Text(" spend")
-                    )
-                    .font(.footnote)
-                    .foregroundColor(textMuted)
-                    Text(formatAmount(total))
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .foregroundColor(textLight)
-                }
-            }
-            .padding(.bottom, 16)
+                // Compact health row (single line)
+                if let statusLabel, let statusIconName, let _ = statusText {
+                    HStack(spacing: 10) {
+                        Spacer()
 
-            if !slices.isEmpty {
-                let columns = [GridItem(.flexible(), spacing: 12),
-                               GridItem(.flexible(), spacing: 12)]
-                LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
-                    ForEach(Array(zip(slices.indices, slices)), id: \.0) { (idx, slice) in
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(colors[idx])
-                                .frame(width: 10, height: 10)
-                            Text(slice.category)
-                                .font(.footnote)
-                                .foregroundColor(textMuted)
-                                .lineLimit(1)
+                        Image(statusIconName)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 50, height: 50)
+                            .accessibilityHidden(true)
+
+                        Text("Health:")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(textMuted)
+
+                        Text(statusLabel)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundColor(statusLabelColor)
+
+                        // subtle divider line between status and bar
+                        Rectangle()
+                            .fill(Color.white.opacity(0.15))
+                            .frame(width: 1, height: 14)
+                            .padding(.horizontal, 2)
+
+                        HealthBar(progress: statusProgress) // segmented style with heart
+                            .frame(width: 80, height: 16)
+
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.95)) {
+                            showStatusAlert = true
                         }
                     }
+                    .padding(.bottom, 14)
                 }
-                .padding(.bottom, 20)
+
+                ZStack {
+                    DonutChart(
+                        slices: slices.map { ($0.category, $0.total) },
+                        colors: colors,
+                        thickness: 30
+                    )
+                    .frame(height: 220)
+
+                    VStack(spacing: 4) {
+                        (
+                            Text(monthName).fontWeight(.bold)
+                            + Text(" spend")
+                        )
+                        .font(.footnote)
+                        .foregroundColor(textMuted)
+                        Text(formatAmount(total))
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundColor(textLight)
+                    }
+                }
+                .padding(.bottom, 16)
+
+                if !slices.isEmpty {
+                    let columns = [GridItem(.flexible(), spacing: 12),
+                                   GridItem(.flexible(), spacing: 12)]
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
+                        ForEach(Array(zip(slices.indices, slices)), id: \.0) { (idx, slice) in
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(colors[idx])
+                                    .frame(width: 10, height: 10)
+                                Text(slice.category)
+                                    .font(.footnote)
+                                    .foregroundColor(textMuted)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                    .padding(.bottom, 20)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.top, 8)
+            .background(bg.opacity(0.001))
+            .task { await loadCurrencySymbol() }
+            .task { await loadSpendingStatus() }
+
+            // MARK: - Recurring-style popup for Health
+            if showStatusAlert {
+                // Dimmed backdrop
+                Color.black.opacity(0.45)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.22, dampingFraction: 0.95)) {
+                            showStatusAlert = false
+                        }
+                    }
+                    .zIndex(100)
+
+                // Card
+                VStack(spacing: 14) {
+                    Text(statusPopupTitle())
+                        .font(.headline)
+                        .foregroundColor(textLight)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(statusText ?? "")
+                        .foregroundColor(textMuted)
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Button(action: {
+                        withAnimation(.spring(response: 0.22, dampingFraction: 0.95)) {
+                            showStatusAlert = false
+                        }
+                    }) {
+                        Text("Close")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(indigo)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .padding(.top, 6)
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color(red: 0.13, green: 0.13, blue: 0.16))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(0.45), radius: 20)
+                )
+                .frame(maxWidth: 360)
+                .padding(.horizontal, 24)
+                .zIndex(101)
+                .transition(.scale.combined(with: .opacity))
             }
         }
-        .padding(.horizontal)
-        .padding(.top, 8)
-        .background(bg.opacity(0.001))
-        .task {
-            await loadCurrencySymbol()
+    }
+
+    // Map the current status label to Spookie-flavored popup titles.
+    private func statusPopupTitle() -> String {
+        if let override = statusTitleOverride { return override }
+        switch statusLabel {
+        case "Happy":
+            return "Spookie is happy and healthy!"
+        case "Nervous":
+            return "Spookie is getting nervous..."
+        case "Critical":
+            return "Help! Spookie is on life support."
+        default:
+            return "Spending update"
         }
     }
 
@@ -93,6 +213,128 @@ struct Overview: View {
             }
         } catch {
             currencySymbol = "$"
+        }
+    }
+
+    private func loadSpendingStatus(monthsBack: Int = 12) async {
+        do {
+            let session = try await SupabaseManager.shared.client.auth.session
+            guard let uid = session.user.id as UUID? else { return }
+
+            let points = try await CategoryService.shared.getSpendingOverTime(
+                userId: uid,
+                monthsBack: monthsBack
+            )
+
+            // Determine how many months have actual spend (> 0)
+            let nonZeroCount = points.filter { $0.total > 0 }.count
+
+            // If fewer than 2 months of spend, show a default "first month" healthy state
+            if nonZeroCount < 2 {
+                await MainActor.run {
+                    self.statusLabel        = "Happy"
+                    self.statusLabelColor   = .green
+                    self.statusIconName     = "happy_ghost"
+                    self.statusProgress     = 1.0
+                    self.statusTitleOverride = "Spookie is feeling good."
+                    self.statusText         = "Keep recording transactions to keep Spookie happy!"
+                }
+                return
+            } else {
+                await MainActor.run { self.statusTitleOverride = nil }
+            }
+
+            let result = spendingStatus(points: points)
+            await MainActor.run {
+                self.statusText         = result.detailText
+                self.statusIconName     = result.iconName
+                self.statusLabel        = result.label
+                self.statusLabelColor   = result.labelColor
+                self.statusProgress     = result.progress
+                self.statusTitleOverride = nil
+            }
+        } catch {
+            // If loading fails entirely, still show the friendly default
+            await MainActor.run {
+                self.statusLabel        = "Happy"
+                self.statusLabelColor   = .green
+                self.statusIconName     = "happy_ghost"
+                self.statusProgress     = 1.0
+                self.statusTitleOverride = "Spookie is feeling good!"
+                self.statusText         = "Keep recording transactions to keep Spookie happy!"
+            }
+        }
+    }
+
+    private func spendingStatus(points: [SpendingPoint]) -> (label: String, labelColor: Color, iconName: String, detailText: String, progress: Double) {
+        let now = Date()
+        let cal = Calendar.current
+        let currentMonthStart = cal.date(from: cal.dateComponents([.year, .month], from: now))!
+
+        guard let currentPoint = points.last, currentPoint.monthStart == currentMonthStart else {
+            return ("", .green, "happy_ghost", "", 0)
+        }
+
+        let history = points.dropLast()
+        let nonZeroHistory = history.filter { $0.total > 0 }
+        let historyTotals = nonZeroHistory.map { $0.total }
+
+        guard !historyTotals.isEmpty else {
+            return ("", .green, "happy_ghost", "", 0)
+        }
+
+        let avg = historyTotals.reduce(0, +) / Double(historyTotals.count)
+        guard avg > 0 else {
+            return ("", .green, "happy_ghost", "", 0)
+        }
+
+        let current = currentPoint.total
+        let delta = (current - avg) / avg
+        let percent = Int(round(abs(delta) * 100))
+        let percentStr = "\(percent)%"
+
+        // Stage-driven bar fill (fixed by stage):
+        // Happy = 1.0, Nervous = 0.66, Critical = 0.10
+        if delta <= -0.05 {
+            return (
+                label: "Happy",
+                labelColor: .green,
+                iconName: "happy_ghost",
+                detailText: "You’re spending \(percentStr) less than usual. Keep it up!",
+                progress: 1.0
+            )
+        } else if delta < 0 {
+            return (
+                label: "Happy",
+                labelColor: .green,
+                iconName: "happy_ghost",
+                detailText: "You’re spending \(percentStr) less than usual. Nice pace.",
+                progress: 1.0
+            )
+        } else if delta == 0 {
+            return (
+                label: "Happy",
+                labelColor: .green,
+                iconName: "happy_ghost",
+                detailText: "You’re right on your usual spending.",
+                progress: 1.0
+            )
+        } else if delta > 0 && delta < 0.15 {
+            return (
+                label: "Nervous",
+                labelColor: .yellow,
+                iconName: "nervous_ghost",
+                detailText: "You’re spending \(percentStr) more than usual. Slightly above average.",
+                progress: 2.0/3.0
+            )
+        } else {
+            return (
+                label: "Critical",
+                labelColor: .red,
+                iconName: "dead_ghost",
+                detailText: "You’re spending \(percentStr) more than usual. Slow down!",
+                progress: 0.10
+            )
         }
     }
 
@@ -151,6 +393,107 @@ struct Overview: View {
         "\(currencySymbol)\(String(format: "%.2f", value))"
     }
 }
+
+// MARK: - Segmented Health Bar with Heart badge
+
+private struct HealthBar: View {
+    /// progress is stage-based 0...1 (e.g., 1.0 happy, 0.66 nervous, 0.10 critical)
+    let progress: Double
+
+    private let bgStroke = Color.white.opacity(0.20)
+    private let trackFill = Color.white.opacity(0.15)
+    private let mainFill  = Color.white.opacity(0.85)
+
+    var body: some View {
+        let filled = min(max(progress, 0), 1)
+
+        GeometryReader { geo in
+            let h = geo.size.height
+            let barH = max(h * 0.58, 6)
+            let barCorner = barH / 2
+            let circleD = h
+            let barW = max(geo.size.width - circleD - 6, 10)
+            let xStart = circleD + 6
+
+            ZStack(alignment: .leading) {
+                // Heart circle badge
+                ZStack {
+                    Circle()
+                        .fill(trackFill)
+                    Circle()
+                        .stroke(bgStroke, lineWidth: 2)
+                    Image(systemName: "heart.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .padding(circleD * 0.22)
+                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.25), radius: 1, x: 0, y: 0)
+                }
+                .frame(width: circleD, height: circleD)
+
+                // Track
+                RoundedRectangle(cornerRadius: barCorner)
+                    .fill(trackFill)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: barCorner)
+                            .stroke(bgStroke, lineWidth: 1)
+                    )
+                    .frame(width: barW, height: barH)
+                    .position(x: xStart + barW / 2, y: h / 2)
+
+                // Filled portion (no overflow tail)
+                RoundedRectangle(cornerRadius: barCorner)
+                    .fill(mainFill)
+                    .frame(width: barW * filled, height: barH)
+                    .position(x: xStart + (barW * filled) / 2, y: h / 2)
+                    .mask(
+                        RoundedRectangle(cornerRadius: barCorner)
+                            .frame(width: barW, height: barH)
+                            .position(x: xStart + barW / 2, y: h / 2)
+                    )
+
+                // Segments overlay clipped to filled area
+                SegmentsOverlay()
+                    .foregroundColor(Color.white.opacity(0.25))
+                    .frame(width: barW * filled, height: barH)
+                    .position(x: xStart + (barW * filled) / 2, y: h / 2)
+                    .mask(
+                        RoundedRectangle(cornerRadius: barCorner)
+                            .frame(width: barW, height: barH)
+                            .position(x: xStart + barW / 2, y: h / 2)
+                    )
+            }
+        }
+        .accessibilityLabel("Spending health")
+    }
+}
+
+/// Diagonal segment pattern like the reference image
+private struct SegmentsOverlay: View {
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
+            let step: CGFloat = max(8, h)
+            let thickness: CGFloat = max(4, h * 0.6)
+
+            Path { p in
+                var x: CGFloat = -w
+                while x < w * 2 {
+                    p.addRoundedRect(
+                        in: CGRect(x: x, y: (h - thickness) / 2, width: thickness, height: thickness),
+                        cornerSize: CGSize(width: thickness/2, height: thickness/2)
+                    )
+                    x += step
+                }
+            }
+            .rotationEffect(.degrees(-20))
+        }
+        .clipped()
+    }
+}
+
+// MARK: - Donut
 
 private struct DonutChart: View {
     let slices: [(label: String, value: Double)]
