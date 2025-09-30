@@ -8,6 +8,11 @@
 import SwiftUI
 import Supabase
 
+struct SpookieStatusPayload {
+    let title: String
+    let message: String
+}
+
 struct CategorySlice: Identifiable {
     let id = UUID()
     let category: String
@@ -16,21 +21,19 @@ struct CategorySlice: Identifiable {
 
 struct Overview: View {
     let transactions: [DBTransaction]
+    let onStatusTap: (SpookieStatusPayload) -> Void
 
     @State private var currencySymbol: String = "$"
-    @State private var statusText: String?                 // full message for popup
-    @State private var statusIconName: String?             // happy_ghost / nervous_ghost / dead_ghost
-    @State private var statusLabel: String?                // "Happy", "Nervous", "Critical"
-    @State private var statusLabelColor: Color = .green    // Health: label color
-    @State private var statusProgress: Double = 0          // stage-based fill: 0...1
-    @State private var showStatusAlert: Bool = false
-    @State private var statusTitleOverride: String? = nil  // custom popup title for first-month/empty data
+    @State private var statusText: String?
+    @State private var statusIconName: String?
+    @State private var statusLabel: String?
+    @State private var statusLabelColor: Color = .green
+    @State private var statusProgress: Double = 0
+    @State private var statusTitleOverride: String? = nil
 
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
     private let textMuted = Color(red: 0.80, green: 0.80, blue: 0.85)
-
-    private let indigo = Color(red: 0.31, green: 0.27, blue: 0.90)
 
     var body: some View {
         let monthName = formattedMonthTitle()
@@ -41,8 +44,6 @@ struct Overview: View {
 
         ZStack {
             VStack(alignment: .leading, spacing: 12) {
-
-                // Compact health row (single line)
                 if let statusLabel, let statusIconName, let _ = statusText {
                     HStack(spacing: 10) {
                         Spacer()
@@ -61,22 +62,23 @@ struct Overview: View {
                             .font(.subheadline.weight(.bold))
                             .foregroundColor(statusLabelColor)
 
-                        // subtle divider line between status and bar
                         Rectangle()
                             .fill(Color.white.opacity(0.15))
                             .frame(width: 1, height: 14)
                             .padding(.horizontal, 2)
 
-                        HealthBar(progress: statusProgress) // segmented style with heart
+                        HealthBar(progress: statusProgress)
                             .frame(width: 80, height: 16)
 
                         Spacer()
                     }
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        withAnimation(.spring(response: 0.25, dampingFraction: 0.95)) {
-                            showStatusAlert = true
-                        }
+                        let payload = SpookieStatusPayload(
+                            title: statusPopupTitle(),
+                            message: statusText ?? ""
+                        )
+                        onStatusTap(payload)
                     }
                     .padding(.bottom, 14)
                 }
@@ -128,65 +130,9 @@ struct Overview: View {
             .background(bg.opacity(0.001))
             .task { await loadCurrencySymbol() }
             .task { await loadSpendingStatus() }
-
-            // MARK: - Recurring-style popup for Health
-            if showStatusAlert {
-                // Dimmed backdrop
-                Color.black.opacity(0.45)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation(.spring(response: 0.22, dampingFraction: 0.95)) {
-                            showStatusAlert = false
-                        }
-                    }
-                    .zIndex(100)
-
-                // Card
-                VStack(spacing: 14) {
-                    Text(statusPopupTitle())
-                        .font(.headline)
-                        .foregroundColor(textLight)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Text(statusText ?? "")
-                        .foregroundColor(textMuted)
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Button(action: {
-                        withAnimation(.spring(response: 0.22, dampingFraction: 0.95)) {
-                            showStatusAlert = false
-                        }
-                    }) {
-                        Text("Close")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(indigo)
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    }
-                    .padding(.top, 6)
-                }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color(red: 0.13, green: 0.13, blue: 0.16))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
-                        .shadow(color: .black.opacity(0.45), radius: 20)
-                )
-                .frame(maxWidth: 360)
-                .padding(.horizontal, 24)
-                .zIndex(101)
-                .transition(.scale.combined(with: .opacity))
-            }
         }
     }
 
-    // Map the current status label to Spookie-flavored popup titles.
     private func statusPopupTitle() -> String {
         if let override = statusTitleOverride { return override }
         switch statusLabel {
@@ -226,10 +172,8 @@ struct Overview: View {
                 monthsBack: monthsBack
             )
 
-            // Determine how many months have actual spend (> 0)
             let nonZeroCount = points.filter { $0.total > 0 }.count
 
-            // If fewer than 2 months of spend, show a default "first month" healthy state
             if nonZeroCount < 2 {
                 await MainActor.run {
                     self.statusLabel        = "Happy"
@@ -254,7 +198,6 @@ struct Overview: View {
                 self.statusTitleOverride = nil
             }
         } catch {
-            // If loading fails entirely, still show the friendly default
             await MainActor.run {
                 self.statusLabel        = "Happy"
                 self.statusLabelColor   = .green
@@ -293,8 +236,6 @@ struct Overview: View {
         let percent = Int(round(abs(delta) * 100))
         let percentStr = "\(percent)%"
 
-        // Stage-driven bar fill (fixed by stage):
-        // Happy = 1.0, Nervous = 0.66, Critical = 0.10
         if delta <= -0.05 {
             return (
                 label: "Happy",
@@ -394,10 +335,7 @@ struct Overview: View {
     }
 }
 
-// MARK: - Segmented Health Bar with Heart badge
-
 private struct HealthBar: View {
-    /// progress is stage-based 0...1 (e.g., 1.0 happy, 0.66 nervous, 0.10 critical)
     let progress: Double
 
     private let bgStroke = Color.white.opacity(0.20)
@@ -416,7 +354,6 @@ private struct HealthBar: View {
             let xStart = circleD + 6
 
             ZStack(alignment: .leading) {
-                // Heart circle badge
                 ZStack {
                     Circle()
                         .fill(trackFill)
@@ -431,7 +368,6 @@ private struct HealthBar: View {
                 }
                 .frame(width: circleD, height: circleD)
 
-                // Track
                 RoundedRectangle(cornerRadius: barCorner)
                     .fill(trackFill)
                     .overlay(
@@ -441,7 +377,6 @@ private struct HealthBar: View {
                     .frame(width: barW, height: barH)
                     .position(x: xStart + barW / 2, y: h / 2)
 
-                // Filled portion (no overflow tail)
                 RoundedRectangle(cornerRadius: barCorner)
                     .fill(mainFill)
                     .frame(width: barW * filled, height: barH)
@@ -452,7 +387,6 @@ private struct HealthBar: View {
                             .position(x: xStart + barW / 2, y: h / 2)
                     )
 
-                // Segments overlay clipped to filled area
                 SegmentsOverlay()
                     .foregroundColor(Color.white.opacity(0.25))
                     .frame(width: barW * filled, height: barH)
@@ -468,7 +402,6 @@ private struct HealthBar: View {
     }
 }
 
-/// Diagonal segment pattern like the reference image
 private struct SegmentsOverlay: View {
     var body: some View {
         GeometryReader { geo in
@@ -492,8 +425,6 @@ private struct SegmentsOverlay: View {
         .clipped()
     }
 }
-
-// MARK: - Donut
 
 private struct DonutChart: View {
     let slices: [(label: String, value: Double)]

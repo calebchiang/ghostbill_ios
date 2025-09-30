@@ -42,8 +42,14 @@ struct HomeTab: View {
     @State private var toastMessage = ""
     @State private var toastIsError = false
 
+    @State private var showStatusAlert = false
+    @State private var statusAlertTitle = ""
+    @State private var statusAlertMessage = ""
+
     private let bg = Color(red: 0.09, green: 0.09, blue: 0.11)
     private let textLight = Color(red: 0.96, green: 0.96, blue: 0.96)
+    private let textMuted = Color(red: 0.80, green: 0.80, blue: 0.85)
+    private let indigo = Color(red: 0.31, green: 0.27, blue: 0.90)
 
     private let categories: [ExpenseCategory] = [
         .groceries, .coffee, .dining, .transport, .fuel, .shopping,
@@ -79,9 +85,18 @@ struct HomeTab: View {
                         }
                         .padding(.horizontal)
 
-                        Overview(transactions: overviewTransactions)
-                            .padding(.horizontal)
-                            .padding(.top, 8)
+                        Overview(
+                            transactions: overviewTransactions,
+                            onStatusTap: { payload in
+                                statusAlertTitle = payload.title
+                                statusAlertMessage = payload.message
+                                withAnimation(.spring(response: 0.25, dampingFraction: 0.95)) {
+                                    showStatusAlert = true
+                                }
+                            }
+                        )
+                        .padding(.horizontal)
+                        .padding(.top, 8)
 
                         HStack {
                             Text("Recent Transactions")
@@ -132,6 +147,58 @@ struct HomeTab: View {
                         Spacer(minLength: 24)
                     }
                     .padding(.top, 12)
+                }
+
+                if showStatusAlert {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.22, dampingFraction: 0.95)) {
+                                showStatusAlert = false
+                            }
+                        }
+                        .zIndex(100)
+
+                    VStack(spacing: 14) {
+                        Text(statusAlertTitle)
+                            .font(.headline)
+                            .foregroundColor(textLight)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Text(statusAlertMessage)
+                            .foregroundColor(textMuted)
+                            .font(.subheadline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Button(action: {
+                            withAnimation(.spring(response: 0.22, dampingFraction: 0.95)) {
+                                showStatusAlert = false
+                            }
+                        }) {
+                            Text("Close")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(indigo)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        }
+                        .padding(.top, 6)
+                    }
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(Color(red: 0.13, green: 0.13, blue: 0.16))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                            )
+                            .shadow(color: .black.opacity(0.45), radius: 20)
+                    )
+                    .frame(maxWidth: 360)
+                    .padding(.horizontal, 24)
+                    .zIndex(101)
+                    .transition(.scale.combined(with: .opacity))
                 }
             }
             .navigationDestination(for: DBTransaction.self) { tx in
