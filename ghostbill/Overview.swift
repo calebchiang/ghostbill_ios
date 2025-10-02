@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Supabase
+import UIKit
 
 struct SpookieStatusPayload {
     let title: String
@@ -45,42 +46,60 @@ struct Overview: View {
         ZStack {
             VStack(alignment: .leading, spacing: 12) {
                 if let statusLabel, let statusIconName, let _ = statusText {
-                    HStack(spacing: 10) {
-                        Spacer()
+                    HStack {
+                        Spacer(minLength: 0)
+                        HStack(spacing: 8) {
+                            Image(statusIconName)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 38, height: 38)
+                                .accessibilityHidden(true)
 
-                        Image(statusIconName)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 50, height: 50)
-                            .accessibilityHidden(true)
+                            Text("Health:")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundColor(textMuted)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
 
-                        Text("Health:")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(textMuted)
+                            Text(statusLabel)
+                                .font(.footnote.weight(.bold))
+                                .foregroundColor(statusLabelColor)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
 
-                        Text(statusLabel)
-                            .font(.subheadline.weight(.bold))
-                            .foregroundColor(statusLabelColor)
+                            Rectangle()
+                                .fill(Color.white.opacity(0.15))
+                                .frame(width: 1, height: 12)
+                                .padding(.horizontal, 2)
 
-                        Rectangle()
-                            .fill(Color.white.opacity(0.15))
-                            .frame(width: 1, height: 14)
-                            .padding(.horizontal, 2)
-
-                        HealthBar(progress: statusProgress)
-                            .frame(width: 80, height: 16)
-
-                        Spacer()
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        let payload = SpookieStatusPayload(
-                            title: statusPopupTitle(),
-                            message: statusText ?? ""
+                            HealthBar(progress: statusProgress)
+                                .frame(width: 72, height: 8)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 25, style: .continuous)
+                                .fill(Color.white.opacity(0.04))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 25, style: .continuous)
+                                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                                )
+                                .shadow(color: .black.opacity(0.25), radius: 10, x: 0, y: 4)
                         )
-                        onStatusTap(payload)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            let generator = UIImpactFeedbackGenerator(style: .soft)
+                            generator.prepare()
+                            generator.impactOccurred(intensity: 0.8)
+                            let payload = SpookieStatusPayload(
+                                title: statusPopupTitle(),
+                                message: statusText ?? ""
+                            )
+                            onStatusTap(payload)
+                        }
+                        Spacer(minLength: 0)
                     }
-                    .padding(.bottom, 14)
+                    .padding(.bottom, 30)
                 }
 
                 ZStack {
@@ -130,6 +149,9 @@ struct Overview: View {
             .background(bg.opacity(0.001))
             .task { await loadCurrencySymbol() }
             .task { await loadSpendingStatus() }
+            .onChange(of: transactions) { _ in
+                Task { await loadSpendingStatus() }
+            }
         }
     }
 
