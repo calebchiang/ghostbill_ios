@@ -9,6 +9,10 @@
 /* Begin PBXBuildFile section */
 		003CBF1E2E7B8D7600324F4E /* RecurringNotificationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003CBF1D2E7B8D7200324F4E /* RecurringNotificationHelper.swift */; };
 		004C55B32E8CE27B002333A3 /* Challenges.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004C55B22E8CE278002333A3 /* Challenges.swift */; };
+		004FDA792E8F480200E32A31 /* Tutorial.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004FDA782E8F480000E32A31 /* Tutorial.swift */; };
+		004FDA7B2E8F4ADE00E32A31 /* MeetSpookie.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004FDA7A2E8F4ADB00E32A31 /* MeetSpookie.swift */; };
+		004FDA7D2E8F4F1500E32A31 /* TutorialRecordSlide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004FDA7C2E8F4F1100E32A31 /* TutorialRecordSlide.swift */; };
+		004FDA7F2E8F4F7B00E32A31 /* CurrencySelect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004FDA7E2E8F4F7800E32A31 /* CurrencySelect.swift */; };
 		008316092E7C9BF500B061F2 /* CurrencySymbols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008316082E7C9BF000B061F2 /* CurrencySymbols.swift */; };
 		0083160B2E7CCBE700B061F2 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0083160A2E7CCBE700B061F2 /* StoreKit.framework */; };
 		008316112E7CF42A00B061F2 /* Paywall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008316102E7CF42400B061F2 /* Paywall.swift */; };
@@ -16,6 +20,7 @@
 		0094690A2E73C8C2009F7EC0 /* UpcomingPaymentsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009469092E73C8BC009F7EC0 /* UpcomingPaymentsSheet.swift */; };
 		00A9BB5F2E7DEB630095ACC7 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 00A9BB5E2E7DEB630095ACC7 /* RevenueCat */; };
 		00A9BB612E7DF2860095ACC7 /* PurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00A9BB602E7DF2830095ACC7 /* PurchaseManager.swift */; };
+		00C99EC12E8F51CD0089E257 /* Reviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C99EC02E8F51CB0089E257 /* Reviews.swift */; };
 		00CD33392E73604000313283 /* ReceiptOCR.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CD33382E73603D00313283 /* ReceiptOCR.swift */; };
 		00CD333B2E737B9700313283 /* Categorizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CD333A2E737B9400313283 /* Categorizer.swift */; };
 		00CD333D2E73808300313283 /* MerchantLexicon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CD333C2E73808000313283 /* MerchantLexicon.swift */; };
@@ -67,6 +72,10 @@
 /* Begin PBXFileReference section */
 		003CBF1D2E7B8D7200324F4E /* RecurringNotificationHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringNotificationHelper.swift; sourceTree = "<group>"; };
 		004C55B22E8CE278002333A3 /* Challenges.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Challenges.swift; sourceTree = "<group>"; };
+		004FDA782E8F480000E32A31 /* Tutorial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tutorial.swift; sourceTree = "<group>"; };
+		004FDA7A2E8F4ADB00E32A31 /* MeetSpookie.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetSpookie.swift; sourceTree = "<group>"; };
+		004FDA7C2E8F4F1100E32A31 /* TutorialRecordSlide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRecordSlide.swift; sourceTree = "<group>"; };
+		004FDA7E2E8F4F7800E32A31 /* CurrencySelect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencySelect.swift; sourceTree = "<group>"; };
 		008316082E7C9BF000B061F2 /* CurrencySymbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencySymbols.swift; sourceTree = "<group>"; };
 		0083160A2E7CCBE700B061F2 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		008316102E7CF42400B061F2 /* Paywall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paywall.swift; sourceTree = "<group>"; };
@@ -75,6 +84,7 @@
 		009469052E73BC00009F7EC0 /* RecurringCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringCalendar.swift; sourceTree = "<group>"; };
 		009469092E73C8BC009F7EC0 /* UpcomingPaymentsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingPaymentsSheet.swift; sourceTree = "<group>"; };
 		00A9BB602E7DF2830095ACC7 /* PurchaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseManager.swift; sourceTree = "<group>"; };
+		00C99EC02E8F51CB0089E257 /* Reviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reviews.swift; sourceTree = "<group>"; };
 		00CD33382E73603D00313283 /* ReceiptOCR.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptOCR.swift; sourceTree = "<group>"; };
 		00CD333A2E737B9400313283 /* Categorizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Categorizer.swift; sourceTree = "<group>"; };
 		00CD333C2E73808000313283 /* MerchantLexicon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MerchantLexicon.swift; sourceTree = "<group>"; };
@@ -175,6 +185,11 @@
 		00F5790F2E70AB190041A410 /* ghostbill */ = {
 			isa = PBXGroup;
 			children = (
+				00C99EC02E8F51CB0089E257 /* Reviews.swift */,
+				004FDA7E2E8F4F7800E32A31 /* CurrencySelect.swift */,
+				004FDA7C2E8F4F1100E32A31 /* TutorialRecordSlide.swift */,
+				004FDA7A2E8F4ADB00E32A31 /* MeetSpookie.swift */,
+				004FDA782E8F480000E32A31 /* Tutorial.swift */,
 				004C55B22E8CE278002333A3 /* Challenges.swift */,
 				0089789E2E82255F00F38AF6 /* ghostbill.entitlements */,
 				00A9BB602E7DF2830095ACC7 /* PurchaseManager.swift */,
@@ -394,10 +409,15 @@
 				00A9BB612E7DF2860095ACC7 /* PurchaseManager.swift in Sources */,
 				004C55B32E8CE27B002333A3 /* Challenges.swift in Sources */,
 				00D92BC32E7236D100EDD565 /* Overview.swift in Sources */,
+				00C99EC12E8F51CD0089E257 /* Reviews.swift in Sources */,
 				00CD333D2E73808300313283 /* MerchantLexicon.swift in Sources */,
+				004FDA7D2E8F4F1500E32A31 /* TutorialRecordSlide.swift in Sources */,
 				00D92BB12E72084700EDD565 /* RootView.swift in Sources */,
+				004FDA792E8F480200E32A31 /* Tutorial.swift in Sources */,
+				004FDA7B2E8F4ADE00E32A31 /* MeetSpookie.swift in Sources */,
 				00CD33392E73604000313283 /* ReceiptOCR.swift in Sources */,
 				00DB88AD2E75EFE700201B12 /* MonthlySavings.swift in Sources */,
+				004FDA7F2E8F4F7B00E32A31 /* CurrencySelect.swift in Sources */,
 				00D92BB72E72233700EDD565 /* HomeTab.swift in Sources */,
 				00F579112E70AB190041A410 /* ghostbillApp.swift in Sources */,
 				00D92BC12E722F0100EDD565 /* TransactionsList.swift in Sources */,

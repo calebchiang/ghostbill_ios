@@ -46,65 +46,9 @@ private let GOALS: [Goal] = [
     .init(id: "neverMissBills",     title: "Never miss a bill",                  symbol: "bell.badge", color: .red)
 ]
 
-// ===== Social Proof bits (unchanged) =====
-
-private struct StarsRow: View {
-    let count: Int = 5
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<count, id: \.self) { _ in
-                Image(systemName: "star.fill")
-                    .imageScale(.medium)
-                    .foregroundColor(.orange)
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("5 out of 5 stars")
-    }
-}
-
-private struct Review: Identifiable {
-    let id = UUID()
-    let name: String
-    let age: Int
-    let text: String
-}
-
-private let REVIEWS: [Review] = [
-    .init(name: "Sarah", age: 28, text: "GhostBill made my spending obvious at a glance. I save hours each week and now save over $500 every month."),
-    .init(name: "Marcus", age: 31, text: "I finally understand where my money goes. The monthly pattern view is eye-opening and keeps me on track."),
-    .init(name: "Ava", age: 25, text: "Small purchases used to add up unnoticed. Now I get gentle nudges before I overspend.")
-]
-
-private struct ReviewCard: View {
-    let review: Review
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                Image(systemName: "person.crop.circle.fill")
-                    .resizable()
-                    .frame(width: 28, height: 28)
-                    .foregroundColor(.secondary)
-                Text("\(review.name), \(review.age)")
-                    .font(.headline)
-                Spacer()
-            }
-            StarsRow()
-            Text("“\(review.text)”")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .lineLimit(3)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-// ========================= Main Onboarding ===========================
-
 struct OnboardingView: View {
-    private enum Step { case welcome, spookie, healthIntro, currency, challenges, socialProof, goals }
+    // Currency moved to the very end.
+    private enum Step { case welcome, tutorial1, tutorial2, challenges, socialProof, goals, currency }
 
     @State private var step: Step = .welcome
     @State private var selectedCurrency: String = "USD"
@@ -117,14 +61,9 @@ struct OnboardingView: View {
     @State private var selectedGoalIDs: Set<String> = []
     @State private var selectedChallengeIDs: Set<String> = []
 
-    @State private var showTapHint = false
-    @State private var showHealthDetail = false
-
-    // Social proof pager
     @State private var reviewPage: Int = 0
-
-    // Option A: index-backed currency selection
     @State private var currencyIndex: Int = 0
+    @State private var showTapHint = false
 
     @EnvironmentObject var session: SessionStore
     var onComplete: () -> Void
@@ -139,12 +78,12 @@ struct OnboardingView: View {
     private var progressValue: CGFloat {
         switch step {
         case .welcome:     return 1.0/7.0
-        case .spookie:     return 2.0/7.0
-        case .healthIntro: return 3.0/7.0
-        case .currency:    return 4.0/7.0
-        case .challenges:  return 5.0/7.0
-        case .socialProof: return 6.0/7.0
-        case .goals:       return 1.0
+        case .tutorial1:   return 2.0/7.0
+        case .tutorial2:   return 3.0/7.0
+        case .challenges:  return 4.0/7.0
+        case .socialProof: return 5.0/7.0
+        case .goals:       return 6.0/7.0
+        case .currency:    return 1.0
         }
     }
 
@@ -225,7 +164,7 @@ struct OnboardingView: View {
                             Text("Welcome to Ghostbill 👋")
                                 .font(.title2)
                                 .fontWeight(.semibold)
-                            Text("Simple tools to help you stay in control.")
+                            Text("Your journey to stress-free finances begin here.")
                                 .font(.body)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
@@ -244,35 +183,24 @@ struct OnboardingView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(Rectangle())
-                    .onTapGesture { crossfade { step = .spookie } }
+                    .onTapGesture { crossfade { step = .tutorial1 } }
                     .opacity(isVisible ? 1 : 0)
 
-                case .spookie:
+                case .tutorial1:
                     VStack {
                         Spacer(minLength: 12)
-                        VStack(spacing: 12) {
-                            Image("happy_ghost")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 120, height: 120)
-                                .clipShape(RoundedRectangle(cornerRadius: 24))
-                            Text("Meet Spookie the ghost!")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                        }
-                        .offset(y: -16)
+                        // From Tutorial.swift
+                        TutorialSlide()
                         Spacer()
                         HStack(spacing: 12) {
                             Button("Back") {
-                                crossfade({ step = .welcome }) { scheduleTapHint() }
+                                crossfade { step = .welcome }
                             }
                             .buttonStyle(.bordered)
                             .disabled(isAnimating)
+
                             Button("Continue") {
-                                crossfade {
-                                    showHealthDetail = false
-                                    step = .healthIntro
-                                }
+                                crossfade { step = .tutorial2 }
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(.accentColor)
@@ -283,85 +211,29 @@ struct OnboardingView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .opacity(isVisible ? 1 : 0)
 
-                case .healthIntro:
-                    VStack(spacing: 20) {
-                        Spacer(minLength: 12)
-                        Text("Keep Spookie healthy.")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                        VStack(spacing: 8) {
-                            Text("As you log purchases, Spookie will learn your usual monthly spending.")
-                            Text("Spend a bit more and he gets concerned; spend a lot more and he looks drained.")
-                        }
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 320)
-                        .opacity(showHealthDetail ? 1 : 0)
-                        Image("happy_spookie")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 250, height: 250)
-                            .opacity(showHealthDetail ? 1 : 0)
-                        Spacer()
-                        HStack(spacing: 12) {
-                            Button("Back") {
-                                crossfade { step = .spookie }
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(isAnimating)
-                            Button("Continue") {
-                                crossfade { step = .currency }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.accentColor)
-                            .disabled(isAnimating)
-                        }
-                        .padding(.bottom, 24)
-                    }
-                    .padding(.horizontal)
-                    .opacity(isVisible ? 1 : 0)
-                    .onAppear {
-                        showHealthDetail = false
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                if step == .healthIntro { showHealthDetail = true }
-                            }
-                        }
-                    }
-
-                case .currency:
+                case .tutorial2:
                     VStack {
-                        Spacer()
-                        VStack(spacing: 20) {
-                            Text("Choose your currency")
-                                .font(.title3)
-                                .fontWeight(.semibold)
-                            Picker("Currency", selection: $currencyIndex) {
-                                ForEach(currencies.indices, id: \.self) { i in
-                                    Text(currencies[i]).tag(i)
-                                }
-                            }
-                            .pickerStyle(.wheel)
-                            .frame(height: 140)
-                            .id("currencyPicker")
-                        }
+                        Spacer(minLength: 12)
+                        // From TutorialRecordSlide.swift
+                        TutorialRecordSlide()
                         Spacer()
                         HStack(spacing: 12) {
                             Button("Back") {
-                                crossfade { step = .healthIntro }
+                                crossfade { step = .tutorial1 }
                             }
                             .buttonStyle(.bordered)
+                            .disabled(isAnimating)
+
                             Button("Continue") {
-                                selectedCurrency = currencies[currencyIndex]
                                 crossfade { step = .challenges }
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(.accentColor)
-                            .disabled(submitting || isAnimating)
+                            .disabled(isAnimating)
                         }
                         .padding(.bottom, 24)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .opacity(isVisible ? 1 : 0)
 
                 case .challenges:
@@ -384,7 +256,7 @@ struct OnboardingView: View {
 
                         HStack(spacing: 12) {
                             Button("Back") {
-                                crossfade { step = .currency }
+                                crossfade { step = .tutorial2 }
                             }
                             .buttonStyle(.bordered)
                             Button("Continue") {
@@ -423,7 +295,7 @@ struct OnboardingView: View {
                                 .frame(height: 80)
                                 .accessibilityHidden(true)
 
-                        VStack(spacing: 6) {
+                            VStack(spacing: 6) {
                                 Text("1500+")
                                     .font(.system(size: 36, weight: .bold))
                                     .lineLimit(1)
@@ -540,8 +412,8 @@ struct OnboardingView: View {
                                 crossfade({ step = .socialProof })
                             }
                             .buttonStyle(.bordered)
-                            Button("Finish") {
-                                Task { await saveAndFinish() }
+                            Button("Continue") {
+                                crossfade { step = .currency }
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(.accentColor)
@@ -550,6 +422,29 @@ struct OnboardingView: View {
                         .padding(.bottom, 24)
                     }
                     .padding(.horizontal)
+                    .opacity(isVisible ? 1 : 0)
+
+                case .currency:
+                    VStack {
+                        Spacer()
+                        // Extracted into its own component
+                        CurrencySelect(currencies: currencies, index: $currencyIndex)
+                        Spacer()
+                        HStack(spacing: 12) {
+                            Button("Back") {
+                                crossfade { step = .goals }
+                            }
+                            .buttonStyle(.bordered)
+                            Button("Finish") {
+                                selectedCurrency = currencies[currencyIndex]
+                                Task { await saveAndFinish() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.accentColor)
+                            .disabled(submitting || isAnimating)
+                        }
+                        .padding(.bottom, 24)
+                    }
                     .opacity(isVisible ? 1 : 0)
                 }
             }
@@ -560,7 +455,6 @@ struct OnboardingView: View {
         .onAppear {
             isVisible = false
             withAnimation(.easeInOut(duration: fadeDuration)) { isVisible = true }
-            // Align index with initial currency
             if let i = currencies.firstIndex(of: selectedCurrency) {
                 currencyIndex = i
             } else {
