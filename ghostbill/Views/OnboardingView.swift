@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Supabase
+import UIKit
 
 struct ProfileUpdate: Encodable {
     let currency: String
@@ -47,7 +48,6 @@ private let GOALS: [Goal] = [
 ]
 
 struct OnboardingView: View {
-    // Currency moved to the very end.
     private enum Step { case welcome, tutorial1, tutorial2, challenges, socialProof, goals, currency }
 
     @State private var step: Step = .welcome
@@ -183,13 +183,17 @@ struct OnboardingView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(Rectangle())
-                    .onTapGesture { crossfade { step = .tutorial1 } }
+                    .onTapGesture {
+                        let generator = UIImpactFeedbackGenerator(style: .light)
+                        generator.prepare()
+                        generator.impactOccurred()
+                        crossfade { step = .tutorial1 }
+                    }
                     .opacity(isVisible ? 1 : 0)
 
                 case .tutorial1:
                     VStack {
                         Spacer(minLength: 12)
-                        // From Tutorial.swift
                         TutorialSlide()
                         Spacer()
                         HStack(spacing: 12) {
@@ -200,6 +204,9 @@ struct OnboardingView: View {
                             .disabled(isAnimating)
 
                             Button("Continue") {
+                                let generator = UIImpactFeedbackGenerator(style: .light)
+                                generator.prepare()
+                                generator.impactOccurred()
                                 crossfade { step = .tutorial2 }
                             }
                             .buttonStyle(.borderedProminent)
@@ -214,7 +221,6 @@ struct OnboardingView: View {
                 case .tutorial2:
                     VStack {
                         Spacer(minLength: 12)
-                        // From TutorialRecordSlide.swift
                         TutorialRecordSlide()
                         Spacer()
                         HStack(spacing: 12) {
@@ -225,6 +231,9 @@ struct OnboardingView: View {
                             .disabled(isAnimating)
 
                             Button("Continue") {
+                                let generator = UIImpactFeedbackGenerator(style: .light)
+                                generator.prepare()
+                                generator.impactOccurred()
                                 crossfade { step = .challenges }
                             }
                             .buttonStyle(.borderedProminent)
@@ -260,6 +269,9 @@ struct OnboardingView: View {
                             }
                             .buttonStyle(.bordered)
                             Button("Continue") {
+                                let generator = UIImpactFeedbackGenerator(style: .light)
+                                generator.prepare()
+                                generator.impactOccurred()
                                 crossfade { step = .socialProof }
                             }
                             .buttonStyle(.borderedProminent)
@@ -366,6 +378,9 @@ struct OnboardingView: View {
                             .buttonStyle(.bordered)
 
                             Button("Continue") {
+                                let generator = UIImpactFeedbackGenerator(style: .light)
+                                generator.prepare()
+                                generator.impactOccurred()
                                 crossfade { step = .goals }
                             }
                             .buttonStyle(.borderedProminent)
@@ -413,6 +428,9 @@ struct OnboardingView: View {
                             }
                             .buttonStyle(.bordered)
                             Button("Continue") {
+                                let generator = UIImpactFeedbackGenerator(style: .light)
+                                generator.prepare()
+                                generator.impactOccurred()
                                 crossfade { step = .currency }
                             }
                             .buttonStyle(.borderedProminent)
@@ -427,7 +445,6 @@ struct OnboardingView: View {
                 case .currency:
                     VStack {
                         Spacer()
-                        // Extracted into its own component
                         CurrencySelect(currencies: currencies, index: $currencyIndex)
                         Spacer()
                         HStack(spacing: 12) {
@@ -437,6 +454,9 @@ struct OnboardingView: View {
                             .buttonStyle(.bordered)
                             Button("Finish") {
                                 selectedCurrency = currencies[currencyIndex]
+                                let generator = UIImpactFeedbackGenerator(style: .light)
+                                generator.prepare()
+                                generator.impactOccurred()
                                 Task { await saveAndFinish() }
                             }
                             .buttonStyle(.borderedProminent)

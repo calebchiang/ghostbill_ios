@@ -74,11 +74,11 @@ struct ChallengeCard: View {
             // Leading icon box
             ZStack {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(isSelected ? Color.purple.opacity(0.15) : Color(.tertiarySystemFill))
+                    .fill(isSelected ? Color.accentColor.opacity(0.15) : Color(.tertiarySystemFill))
                 Image(systemName: challenge.symbol)
                     .imageScale(.large)
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(isSelected ? .purple : .secondary)
+                    .foregroundColor(isSelected ? .accentColor : .secondary)
             }
             .frame(width: 44, height: 44)
 
@@ -105,9 +105,9 @@ struct ChallengeCard: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(isSelected ? Color.purple.opacity(0.35) : Color.clear, lineWidth: 2)
+                .stroke(isSelected ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 2)
         )
-        .shadow(color: isSelected ? Color.purple.opacity(0.25) : .clear, radius: 12, x: 0, y: 6)
+        .shadow(color: isSelected ? Color.accentColor.opacity(0.25) : .clear, radius: 12, x: 0, y: 6)
         .contentShape(Rectangle())
     }
 }
